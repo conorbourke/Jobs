@@ -121,7 +121,7 @@ can be made from the UI.
 
 ## Test checklist (per phase)
 
-Phase 1:
+Phase 1 — foundation:
 - [ ] Sign up → verification email → confirm → land on dashboard
 - [ ] Password reset round-trip
 - [ ] Second user cannot see first user's rows (RLS) — try any table with
@@ -129,3 +129,44 @@ Phase 1:
 - [ ] Settings: export zip downloads; delete account removes auth user,
       rows and storage objects
 - [ ] Cookie banner shows once; privacy/terms pages render
+
+Phase 2 — tracker:
+- [ ] Sort order: app with soonest upcoming interview first, then
+      in_person > screening_call > applied, then oldest applied first
+- [ ] Rejected section collapsed at the very bottom, expandable
+- [ ] Row click opens detail panel; all fields editable and persisted
+- [ ] Pasting an email adds it to the thread (newest top) and refreshes the
+      pinned AI summary
+- [ ] Inline status dropdown works; applied stamps date_submitted
+
+Phase 3 — templates & AI:
+- [ ] Exactly one master CV; role templates inherit companies/dates/education
+      (edit master → propagates to role templates)
+- [ ] Generate CV & cover: PDF layout identical to template; portfolio
+      tickbox controls mentions in BOTH cover letter and email
+- [ ] Regenerate with comment produces a new version; old versions remain
+
+Phase 4 — suggested jobs:
+- [ ] Pasting a job URL creates a pre-filled draft; unparseable page still
+      creates a blank draft (never blocks)
+- [ ] Company list: counts join on company UUID; import in Settings updates
+      existing companies in place (IDs preserved); drag reorder persists
+- [ ] Mark submitted → appears in Tracker as applied
+
+Phase 5 — scheduling:
+- [ ] Scheduling generates brief + prep PDFs and emails a .ics that renders
+      Gmail's add-to-calendar card, with both PDFs attached; ics_sent_at set
+- [ ] Toggles in Settings disable briefs/invite independently
+
+Phase 6 — forms:
+- [ ] Each input route (URL / pasted / upload) extracts questions
+- [ ] .docx round-trip: answers placed without restructuring; verification
+      flags any altered question text; appendix for unmatched questions
+- [ ] Per-question confidence + edit boxes; re-render uses edits
+- [ ] Side-by-side preview displays original vs completed
+
+Phase 7 — dashboard & admin:
+- [ ] Applied counts (all time/month/week/today) and pipeline counts correct
+- [ ] Weekly chart shows applications vs interviews; 7-day drop-off banner
+- [ ] Superadmin-only Users/Admin Settings tabs; user actions work
+- [ ] All caps/model/donation URL changes take effect without redeploy
