@@ -1,10 +1,36 @@
-export const metadata = { title: "CV Templates" };
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminSettings } from "@/lib/settings";
+import type { CoverTemplate, CvTemplate } from "@/lib/types";
+import { TemplatesClient } from "./templates-client";
 
-export default function Page() {
+export const metadata = { title: "CV Templates" };
+export const dynamic = "force-dynamic";
+
+export default async function TemplatesPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [{ data: templates }, { data: cover }, settings] = await Promise.all([
+    supabase
+      .from("cv_templates")
+      .select("*")
+      .order("is_master", { ascending: false })
+      .order("created_at")
+      .returns<CvTemplate[]>(),
+    supabase.from("cover_templates").select("*").maybeSingle<CoverTemplate>(),
+    getAdminSettings(supabase),
+  ]);
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">CV Templates</h1>
-      <p className="mt-4 text-sm text-neutral-500">Coming in a later phase.</p>
-    </div>
+    <TemplatesClient
+      userId={user.id}
+      templates={templates ?? []}
+      cover={cover}
+      maxTemplates={settings.max_cv_templates}
+    />
   );
 }
