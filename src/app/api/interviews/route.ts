@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { processScheduledInterview } from "@/lib/scheduling";
 
 /**
- * Schedule a call/interview. Creates the interview row and promotes the
- * application status. Brief generation + .ics invite (Phase 5) are wired in
- * via lib/scheduling once available.
+ * Schedule a call/interview. Creates the interview row, promotes the
+ * application status, auto-generates the company brief + interview prep PDFs
+ * and emails a .ics invite with both attached (per user settings).
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -48,5 +49,8 @@ export async function POST(request: Request) {
       .eq("id", application_id);
   }
 
-  return NextResponse.json({ ok: true, interview });
+  // Briefs + .ics invite — best-effort, scheduling never fails because of them.
+  const outcome = await processScheduledInterview(supabase, user.id, interview);
+
+  return NextResponse.json({ ok: true, interview, ...outcome });
 }

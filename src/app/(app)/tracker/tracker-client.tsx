@@ -191,6 +191,7 @@ function SchedulePopover({
   const [type, setType] = useState("video");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[] | null>(null);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -212,7 +213,32 @@ function SchedulePopover({
       setError(json.error ?? "Failed to schedule");
       return;
     }
+    const json = await res.json();
+    if (json.warnings?.length) {
+      // Interview saved, but a follow-up step had issues — let the user read them.
+      setWarnings(json.warnings);
+      return;
+    }
     onSaved();
+  }
+
+  if (warnings) {
+    return (
+      <div
+        className="absolute right-0 top-6 z-20 w-72 space-y-3 rounded-xl border border-amber-200 bg-white p-4 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-sm font-semibold text-amber-700">Scheduled, with warnings</p>
+        <ul className="list-disc pl-4 text-xs text-neutral-600">
+          {warnings.map((w, i) => (
+            <li key={i}>{w}</li>
+          ))}
+        </ul>
+        <button onClick={onSaved} className="btn-secondary w-full">
+          OK
+        </button>
+      </div>
+    );
   }
 
   return (
