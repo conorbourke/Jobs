@@ -1,0 +1,22 @@
+{
+  // Cloudflare Workers configuration for the OpenNext adapter.
+  // Rename `name` when the real domain/app name is chosen (see src/config.ts).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jobplatform",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-05-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+  // Secrets (set with `wrangler secret put <NAME>`):
+  //   SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, RESEND_API_KEY,
+  //   CLOUDFLARE_API_TOKEN (Browser Rendering), ENCRYPTION_KEY
+  // Vars (set in dashboard or here under "vars"):
+  //   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  //   NEXT_PUBLIC_APP_URL, CLOUDFLARE_ACCOUNT_ID, EMAIL_FROM
+}
