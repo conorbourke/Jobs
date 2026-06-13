@@ -1,8 +1,9 @@
 {
   // Cloudflare Workers configuration for the OpenNext adapter.
-  // Rename `name` when the real domain/app name is chosen (see src/config.ts).
+  // `name` matches the connected Cloudflare Workers Builds service ("jobs").
+  // The user-facing app name lives separately in src/config.ts (APP_NAME).
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "jobplatform",
+  "name": "jobs",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-05-05",
   "compatibility_flags": ["nodejs_compat"],
