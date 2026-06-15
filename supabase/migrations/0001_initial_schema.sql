@@ -5,23 +5,6 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- Helper: is the current user a superadmin?
--- SECURITY DEFINER so it can read profiles without tripping profiles' own RLS.
--- ----------------------------------------------------------------------------
-create or replace function public.is_superadmin()
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select exists (
-    select 1 from public.profiles
-    where id = auth.uid() and role = 'superadmin'
-  );
-$$;
-
--- ----------------------------------------------------------------------------
 -- profiles — extends auth.users
 -- ----------------------------------------------------------------------------
 create table public.profiles (
@@ -41,6 +24,22 @@ create table public.profiles (
 );
 
 alter table public.profiles enable row level security;
+
+-- Helper: is the current user a superadmin? Defined AFTER profiles exists so
+-- this LANGUAGE sql function body validates at creation time. SECURITY DEFINER
+-- so it can read profiles without tripping profiles' own RLS.
+create or replace function public.is_superadmin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'superadmin'
+  );
+$$;
 
 create policy "profiles: select own or superadmin"
   on public.profiles for select
