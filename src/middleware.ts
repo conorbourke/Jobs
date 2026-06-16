@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config";
 
 const APP_PREFIXES = [
   "/dashboard",
@@ -15,8 +16,8 @@ const APP_PREFIXES = [
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = SUPABASE_URL;
+  const supabaseAnonKey = SUPABASE_ANON_KEY;
   const path = request.nextUrl.pathname;
   const isAppPath = APP_PREFIXES.some((p) => path === p || path.startsWith(p + "/"));
 
