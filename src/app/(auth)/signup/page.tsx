@@ -17,32 +17,40 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    // Sign-up open/closed is enforced server-side too (see api/auth/signup-check).
-    const check = await fetch("/api/auth/signup-check");
-    if (check.ok) {
-      const { open } = await check.json();
-      if (!open) {
-        setError("Sign-ups are currently closed.");
-        setLoading(false);
+    try {
+      // Sign-up open/closed is enforced server-side too (api/auth/signup-check).
+      const check = await fetch("/api/auth/signup-check");
+      if (check.ok) {
+        const { open } = await check.json();
+        if (!open) {
+          setError("Sign-ups are currently closed.");
+          return;
+        }
+      }
+
+      const supabase = createClient();
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        },
+      });
+      if (error) {
+        setError(error.message);
         return;
       }
-    }
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name },
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
-      },
-    });
-    if (error) {
-      setError(error.message);
+      setDone(true);
+    } catch (err) {
+      setError(
+        err instanceof Error && /url|key|required|fetch/i.test(err.message)
+          ? "Sign-up is temporarily unavailable — the service isn't fully configured yet. Please try again shortly."
+          : "Something went wrong. Please try again."
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-    setDone(true);
   }
 
   if (done) {
