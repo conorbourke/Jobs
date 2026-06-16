@@ -11,12 +11,6 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  // wrangler runs this build step before `deploy` / `versions upload`, so the
-  // OpenNext worker (.open-next/worker.js) is generated even when the
-  // Cloudflare Workers Builds dashboard has no build command configured.
-  "build": {
-    "command": "npx opennextjs-cloudflare build"
-  },
   "observability": {
     "enabled": true
   }
