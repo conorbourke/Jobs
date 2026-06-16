@@ -17,15 +17,24 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      router.push(params.get("next") ?? "/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error && /url|key|required|fetch/i.test(err.message)
+          ? "Sign-in is temporarily unavailable — the service isn't fully configured yet. Please try again shortly."
+          : "Something went wrong. Please try again."
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-    router.push(params.get("next") ?? "/dashboard");
-    router.refresh();
   }
 
   return (
