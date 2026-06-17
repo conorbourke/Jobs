@@ -330,13 +330,13 @@ create table public.admin_settings (
   max_companies integer not null default 500,
   max_roles integer not null default 50,
   max_cv_templates integer not null default 10,
-  default_ai_model text not null default 'gpt-5',
+  default_ai_model text not null default 'claude-opus-4-8',
   ai_monthly_generation_limit integer, -- null = unlimited
   donation_url text not null default 'https://buymeacoffee.com/',
   signup_open boolean not null default true,
   billing_enabled boolean not null default false,
   -- price per 1M tokens used for cost estimates, keyed by model
-  model_prices jsonb not null default '{"gpt-5": {"input": 10, "output": 30}}'::jsonb,
+  model_prices jsonb not null default '{"claude-opus-4-8": {"input": 5, "output": 25}, "claude-sonnet-4-6": {"input": 3, "output": 15}, "claude-haiku-4-5": {"input": 1, "output": 5}}'::jsonb,
   updated_at timestamptz not null default now()
 );
 

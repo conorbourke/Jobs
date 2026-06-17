@@ -21,7 +21,7 @@ donation link, with the data model ready for a future £5/month plan.
 | DB / Auth | Supabase (Postgres + RLS, email/password auth only) |
 | Storage | Supabase Storage (`signatures`, `uploads`, `generated` buckets) |
 | Email | Resend (.ics invites, verification, reset) |
-| AI | OpenAI API — server-side only, platform key |
+| AI | Anthropic (Claude) API — server-side only, platform key |
 | PDFs | Cloudflare **Browser Rendering REST API** (HTML/CSS → PDF) |
 
 ### Why `@opennextjs/cloudflare` (not `@cloudflare/next-on-pages`)
@@ -76,7 +76,7 @@ values as Worker secrets/vars (see comments in `wrangler.jsonc`):
 
 ```sh
 wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-wrangler secret put OPENAI_API_KEY
+wrangler secret put ANTHROPIC_API_KEY
 wrangler secret put RESEND_API_KEY
 wrangler secret put CLOUDFLARE_API_TOKEN
 wrangler secret put ENCRYPTION_KEY   # openssl rand -base64 32
@@ -102,8 +102,10 @@ can be made from the UI.
 ## Architecture notes
 
 - **AI service layer** (`src/lib/ai.ts`): all calls server-side. If a user
-  has `openai_api_key_encrypted` set, their key is used; otherwise the
-  platform `OPENAI_API_KEY`. The fallback logic ships now; the Settings UI
+  has `openai_api_key_encrypted` set (legacy column name; holds an Anthropic
+  key), their key is used; otherwise the platform `ANTHROPIC_API_KEY`. The
+  default model is `claude-opus-4-8` (changeable in Admin Settings). The
+  fallback logic ships now; the Settings UI
   for user keys is a later phase. Every call logs feature/model/tokens/cost
   to `ai_usage_log` and respects `admin_settings.ai_monthly_generation_limit`.
 - **Caps** (max companies/roles/CV templates) live in `admin_settings` and

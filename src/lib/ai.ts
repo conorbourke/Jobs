@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptSecret } from "./crypto";
 import { getAdminSettings } from "./settings";
@@ -6,10 +6,10 @@ import type { AdminSettings, Profile } from "./types";
 
 /**
  * AI service layer. All inference is server-side through the platform
- * OPENAI_API_KEY (Cloudflare secret). If a user has a per-user key stored
- * (openai_api_key_encrypted — Settings UI comes later), it is used instead;
- * otherwise we fall back to the platform key. Every call is logged to
- * ai_usage_log with a cost estimate.
+ * ANTHROPIC_API_KEY (Cloudflare secret). If a user has a per-user key stored
+ * (openai_api_key_encrypted — legacy column name, now holds an Anthropic key;
+ * the Settings UI comes later), it is used instead; otherwise we fall back to
+ * the platform key. Every call is logged to ai_usage_log with a cost estimate.
  */
 
 export class AiLimitError extends Error {
@@ -19,8 +19,10 @@ export class AiLimitError extends Error {
   }
 }
 
-async function clientForUser(profile: Pick<Profile, "openai_api_key_encrypted">) {
-  let apiKey = process.env.OPENAI_API_KEY;
+async function clientForUser(
+  profile: Pick<Profile, "openai_api_key_encrypted">
+): Promise<Anthropic> {
+  let apiKey = process.env.ANTHROPIC_API_KEY;
   if (profile.openai_api_key_encrypted) {
     try {
       apiKey = await decryptSecret(profile.openai_api_key_encrypted);
@@ -28,8 +30,8 @@ async function clientForUser(profile: Pick<Profile, "openai_api_key_encrypted">)
       // Bad/legacy user key — fall back to the platform key.
     }
   }
-  if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
-  return new OpenAI({ apiKey });
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+  return new Anthropic({ apiKey });
 }
 
 function estimateCost(
@@ -67,8 +69,6 @@ export interface AiCallOptions {
   feature: string; // logged to ai_usage_log
   system: string;
   user: string;
-  /** Ask the model for a JSON object response and parse it. */
-  json?: boolean;
   model?: string; // override; defaults to admin_settings.default_ai_model
   maxOutputTokens?: number;
 }
@@ -83,40 +83,47 @@ export async function aiComplete(opts: AiCallOptions): Promise<string> {
     .eq("id", opts.userId)
     .single();
 
-  const openai = await clientForUser(profile ?? { openai_api_key_encrypted: null });
+  const anthropic = await clientForUser(
+    profile ?? { openai_api_key_encrypted: null }
+  );
   const model = opts.model ?? settings.default_ai_model;
 
-  const completion = await openai.chat.completions.create({
+  const message = await anthropic.messages.create({
     model,
-    messages: [
-      { role: "system", content: opts.system },
-      { role: "user", content: opts.user },
-    ],
-    ...(opts.json ? { response_format: { type: "json_object" as const } } : {}),
-    ...(opts.maxOutputTokens ? { max_completion_tokens: opts.maxOutputTokens } : {}),
+    max_tokens: opts.maxOutputTokens ?? 4096,
+    system: opts.system,
+    messages: [{ role: "user", content: opts.user }],
   });
 
-  const usage = completion.usage;
+  const text = message.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+
+  const usage = message.usage;
   await opts.supabase.from("ai_usage_log").insert({
     user_id: opts.userId,
     feature: opts.feature,
     model,
-    input_tokens: usage?.prompt_tokens ?? 0,
-    output_tokens: usage?.completion_tokens ?? 0,
+    input_tokens: usage?.input_tokens ?? 0,
+    output_tokens: usage?.output_tokens ?? 0,
     cost_estimate: estimateCost(
       settings,
       model,
-      usage?.prompt_tokens ?? 0,
-      usage?.completion_tokens ?? 0
+      usage?.input_tokens ?? 0,
+      usage?.output_tokens ?? 0
     ),
   });
 
-  return completion.choices[0]?.message?.content ?? "";
+  return text;
 }
 
 /** aiComplete + JSON.parse with fence stripping, for structured outputs. */
-export async function aiJson<T>(opts: Omit<AiCallOptions, "json">): Promise<T> {
-  const raw = await aiComplete({ ...opts, json: true });
-  const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+export async function aiJson<T>(opts: AiCallOptions): Promise<T> {
+  const raw = await aiComplete(opts);
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/, "");
   return JSON.parse(cleaned) as T;
 }
