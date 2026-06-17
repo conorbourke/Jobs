@@ -25,6 +25,7 @@ export function AdminSettingsClient({ settings }: { settings: AdminSettings }) {
         max_roles: s.max_roles,
         max_cv_templates: s.max_cv_templates,
         default_ai_model: s.default_ai_model,
+        cheap_ai_model: s.cheap_ai_model,
         ai_monthly_generation_limit: s.ai_monthly_generation_limit,
         donation_url: s.donation_url,
         signup_open: s.signup_open,
@@ -97,11 +98,19 @@ export function AdminSettingsClient({ settings }: { settings: AdminSettings }) {
         <h2 className="font-semibold">AI</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="label">Default model</label>
+            <label className="label">Writing model (premium)</label>
             <input className="input" value={s.default_ai_model}
               onChange={(e) => setS({ ...s, default_ai_model: e.target.value })} />
             <p className="mt-1 text-xs text-neutral-400">
-              Used for all generations unless a per-user key/model is set.
+              Used for the candidate-facing writing: tailored CV &amp; cover letter.
+            </p>
+          </div>
+          <div>
+            <label className="label">Cheap model (everything else)</label>
+            <input className="input" value={s.cheap_ai_model}
+              onChange={(e) => setS({ ...s, cheap_ai_model: e.target.value })} />
+            <p className="mt-1 text-xs text-neutral-400">
+              Summaries, briefs, interview prep, form answers, URL scraping.
             </p>
           </div>
           <div>
