@@ -331,7 +331,7 @@ create table public.admin_settings (
   max_roles integer not null default 50,
   max_cv_templates integer not null default 10,
   default_ai_model text not null default 'claude-opus-4-8', -- premium: CV + cover writing
-  cheap_ai_model text not null default 'claude-sonnet-4-6', -- everything else
+  cheap_ai_model text not null default 'claude-haiku-4-5', -- everything else
   ai_monthly_generation_limit integer, -- null = unlimited
   donation_url text not null default 'https://buymeacoffee.com/',
   signup_open boolean not null default true,
