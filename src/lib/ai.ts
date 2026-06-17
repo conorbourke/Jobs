@@ -63,13 +63,30 @@ async function enforceLimit(
   if ((count ?? 0) >= limit) throw new AiLimitError();
 }
 
+/**
+ * Two-tier model routing: the candidate-facing *writing* (tailored CV + cover
+ * letter) uses the premium model (admin_settings.default_ai_model); everything
+ * else (summaries, briefs, interview prep, form answers, scraping) uses the
+ * cheaper model (admin_settings.cheap_ai_model). An explicit `model` override
+ * always wins. Both models are configurable in Admin Settings.
+ */
+const WRITING_FEATURES = new Set([
+  "cv_cover_generation",
+  "cv_cover_regeneration",
+]);
+
+function modelForFeature(settings: AdminSettings, feature: string): string {
+  if (WRITING_FEATURES.has(feature)) return settings.default_ai_model;
+  return settings.cheap_ai_model || settings.default_ai_model;
+}
+
 export interface AiCallOptions {
   supabase: SupabaseClient; // RLS client for the current user
   userId: string;
-  feature: string; // logged to ai_usage_log
+  feature: string; // logged to ai_usage_log; also selects the model tier
   system: string;
   user: string;
-  model?: string; // override; defaults to admin_settings.default_ai_model
+  model?: string; // override; otherwise routed by feature (see modelForFeature)
   maxOutputTokens?: number;
 }
 
@@ -86,7 +103,7 @@ export async function aiComplete(opts: AiCallOptions): Promise<string> {
   const anthropic = await clientForUser(
     profile ?? { openai_api_key_encrypted: null }
   );
-  const model = opts.model ?? settings.default_ai_model;
+  const model = opts.model ?? modelForFeature(settings, opts.feature);
 
   const message = await anthropic.messages.create({
     model,

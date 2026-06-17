@@ -189,6 +189,7 @@ export interface AdminSettings {
   max_roles: number;
   max_cv_templates: number;
   default_ai_model: string;
+  cheap_ai_model: string;
   ai_monthly_generation_limit: number | null;
   donation_url: string;
   signup_open: boolean;
