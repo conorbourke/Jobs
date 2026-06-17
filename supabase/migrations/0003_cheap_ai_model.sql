@@ -5,4 +5,4 @@
 -- ============================================================================
 alter table public.admin_settings
   add column if not exists cheap_ai_model text not null
-  default 'claude-sonnet-4-6';
+  default 'claude-haiku-4-5';
