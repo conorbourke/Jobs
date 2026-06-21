@@ -181,11 +181,44 @@ function TemplateEditor({
   const [label, setLabel] = useState(template.label);
   const [cv, setCv] = useState<CvContent>({ ...EMPTY_CV, ...template.content });
   const [saved, setSaved] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   async function save() {
     await onSave(template, cv, label);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  // Renders the current editor content through the same HTML/CSS → PDF pipeline
+  // used for generation, so the preview matches the real output exactly.
+  async function preview() {
+    setPreviewing(true);
+    setPreviewError(null);
+    try {
+      const res = await fetch("/api/templates/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: cv }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setPreviewError(
+          res.status === 503
+            ? "PDF preview needs Cloudflare Browser Rendering configured (CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN on the Worker)."
+            : json.error ?? "Preview failed"
+        );
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      setPreviewUrl((old) => {
+        if (old) URL.revokeObjectURL(old);
+        return url;
+      });
+    } finally {
+      setPreviewing(false);
+    }
   }
 
   function setExp(i: number, patch: Partial<CvContent["experience"][number]>) {
@@ -394,9 +427,12 @@ function TemplateEditor({
             )}
           </div>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-2">
             <button onClick={save} className="btn-primary">
               {saved ? "Saved ✓" : "Save template"}
+            </button>
+            <button onClick={preview} disabled={previewing} className="btn-secondary">
+              {previewing ? "Rendering…" : "Preview PDF"}
             </button>
             {onDelete && (
               <button onClick={onDelete} className="btn-secondary text-red-600">
@@ -404,6 +440,30 @@ function TemplateEditor({
               </button>
             )}
           </div>
+
+          {previewError && (
+            <p className="mt-2 text-sm text-red-600">{previewError}</p>
+          )}
+          {previewUrl && (
+            <div className="mt-3">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="label mb-0">PDF preview (current edits)</span>
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium text-accent-600 hover:underline"
+                >
+                  Open in new tab
+                </a>
+              </div>
+              <iframe
+                src={previewUrl}
+                title="CV preview"
+                className="h-[640px] w-full rounded-lg border border-neutral-200 bg-white"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
