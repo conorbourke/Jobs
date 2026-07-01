@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { aiJson } from "../ai";
-import { htmlToText } from "../scrape";
+import { fetchReadableText } from "../scrape";
 import type { Application, CvTemplate, FormAnswer, FormQuestion } from "../types";
 
 /* --------------------------- question extraction --------------------------- */
@@ -30,16 +30,12 @@ export async function extractQuestionsFromUrl(
   userId: string,
   url: string
 ): Promise<FormQuestion[]> {
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`Could not fetch the form page (HTTP ${res.status})`);
-  const text = htmlToText(await res.text());
-  if (!text) throw new Error("The page had no readable text");
+  const text = await fetchReadableText(url);
+  if (!text) {
+    throw new Error(
+      "Couldn't read the form page — it may require a login. Paste the questions instead."
+    );
+  }
   return extractQuestionsFromText(supabase, userId, text);
 }
 
