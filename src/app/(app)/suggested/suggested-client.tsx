@@ -143,7 +143,9 @@ function UrlSubmitBar({
       return;
     }
     if (!json.scraped) {
-      setNotice("Couldn't read the page — a blank draft was created with the URL; fill it in manually.");
+      setNotice(
+        "Couldn't read this page automatically (some sites, e.g. LinkedIn, block it or need a login). A draft was created with the URL — paste the job description into it and generate as normal."
+      );
     }
     setUrl("");
     onCreated(json.application.id);

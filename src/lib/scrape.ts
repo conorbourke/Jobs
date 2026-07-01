@@ -28,31 +28,87 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
 /**
- * Best-effort job page scrape: fetch + text-strip + AI extraction.
- * Never throws for content problems — returns whatever could be parsed
- * (empty strings where nothing could).
+ * Fetch a page's readable text, best-effort. Prefers Cloudflare Browser
+ * Rendering (a real headless browser that runs JavaScript and presents a
+ * proper browser fingerprint) — it gets through JS-heavy job boards and many
+ * bot walls a plain server fetch cannot. Falls back to a direct fetch when
+ * Browser Rendering isn't configured or fails. Returns "" if nothing readable
+ * could be retrieved.
+ */
+export async function fetchReadableText(url: string): Promise<string> {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+
+  if (accountId && token) {
+    const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering`;
+    const auth = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    // /markdown returns clean, already-stripped content — ideal for the model.
+    try {
+      const res = await fetch(`${base}/markdown`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ url }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { result?: string };
+        if (json.result?.trim()) return json.result.slice(0, 24000);
+      }
+    } catch {
+      // fall through to /content
+    }
+    // /content returns fully-rendered HTML — strip it ourselves.
+    try {
+      const res = await fetch(`${base}/content`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ url }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { result?: string };
+        const text = htmlToText(json.result ?? "");
+        if (text.trim()) return text.slice(0, 24000);
+      }
+    } catch {
+      // fall through to plain fetch
+    }
+  }
+
+  // Plain fetch fallback (works for simple, non-JS, non-walled pages).
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": BROWSER_UA, Accept: "text/html,application/xhtml+xml" },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const text = htmlToText(await res.text());
+      if (text.trim()) return text.slice(0, 24000);
+    }
+  } catch {
+    // give up
+  }
+  return "";
+}
+
+/**
+ * Best-effort job page scrape: fetch (a real browser where possible) + AI
+ * reconstruction of the posting. Never throws for content problems — returns
+ * whatever could be parsed (empty strings where nothing could).
  */
 export async function scrapeJobUrl(
   supabase: SupabaseClient,
   userId: string,
   url: string
 ): Promise<Partial<ScrapedJob>> {
-  let text = "";
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) return {};
-    text = htmlToText(await res.text()).slice(0, 24000);
-  } catch {
-    return {};
-  }
+  const text = await fetchReadableText(url);
   if (!text) return {};
 
   try {
@@ -61,8 +117,8 @@ export async function scrapeJobUrl(
       userId,
       feature: "job_url_scrape",
       system:
-        'Extract job posting details from page text. Return JSON: {"job_title":string,"company_name":string,"location":string,"salary_text":string,"description":string}. description = the job description/requirements, cleaned up, max ~800 words. Use "" for anything not present. Never invent values.',
-      user: `Page URL: ${url}\n\nPage text:\n${text}`,
+        'You read the text/markdown of a job posting page and reconstruct the posting. Return JSON: {"job_title":string,"company_name":string,"location":string,"salary_text":string,"description":string}. "description" is a clean, faithful write-up of the role — what the company does, responsibilities, requirements and anything notable — in ~150-400 words, based only on the page. Ignore site navigation, cookie banners, and unrelated job listings. Use "" for any field genuinely not present. Never invent details that are not on the page.',
+      user: `Page URL: ${url}\n\nPage content:\n${text}`,
     });
   } catch {
     return {};
