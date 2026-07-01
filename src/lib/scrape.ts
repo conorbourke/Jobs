@@ -110,15 +110,29 @@ export async function scrapeJobUrl(
 ): Promise<Partial<ScrapedJob>> {
   const text = await fetchReadableText(url);
   if (!text) return {};
+  return extractJobFromText(supabase, userId, text, url);
+}
 
+/**
+ * Reconstruct a job posting from raw page text/markdown the user pastes in.
+ * This is the reliable path for bot-walled sites (LinkedIn, Indeed): the user
+ * copies the page, the AI rebuilds the structured draft. Never throws.
+ */
+export async function extractJobFromText(
+  supabase: SupabaseClient,
+  userId: string,
+  text: string,
+  url?: string
+): Promise<Partial<ScrapedJob>> {
+  if (!text.trim()) return {};
   try {
     return await aiJson<ScrapedJob>({
       supabase,
       userId,
       feature: "job_url_scrape",
       system:
-        'You read the text/markdown of a job posting page and reconstruct the posting. Return JSON: {"job_title":string,"company_name":string,"location":string,"salary_text":string,"description":string}. "description" is a clean, faithful write-up of the role — what the company does, responsibilities, requirements and anything notable — in ~150-400 words, based only on the page. Ignore site navigation, cookie banners, and unrelated job listings. Use "" for any field genuinely not present. Never invent details that are not on the page.',
-      user: `Page URL: ${url}\n\nPage content:\n${text}`,
+        'You read the text/markdown of a job posting and reconstruct the posting. Return JSON: {"job_title":string,"company_name":string,"location":string,"salary_text":string,"description":string}. "description" is a clean, faithful write-up of the role — what the company does, responsibilities, requirements and anything notable — in ~150-400 words, based only on the provided text. Ignore site navigation, cookie banners, and unrelated job listings. Use "" for any field genuinely not present. Never invent details that are not in the text.',
+      user: `${url ? `Source URL: ${url}\n\n` : ""}Content:\n${text.slice(0, 24000)}`,
     });
   } catch {
     return {};
