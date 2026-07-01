@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { matchOrCreateCompany, scrapeJobUrl } from "@/lib/scrape";
+import {
+  extractJobFromText,
+  matchOrCreateCompany,
+  scrapeJobUrl,
+} from "@/lib/scrape";
 
 /**
- * Paste a job URL → create a draft application pre-filled with whatever the
- * best-effort scrape extracted. Scrape failure never blocks: a blank draft
- * with the URL set is always created.
+ * Create a draft application from either:
+ *  - a job URL (best-effort scrape via Browser Rendering → AI reconstruction), or
+ *  - pasted job text (reliable path for bot-walled sites like LinkedIn/Indeed).
+ * Scrape/extraction failure never blocks: a draft with the URL is still created.
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -14,12 +19,21 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { url, source } = await request.json();
-  if (!url || !/^https?:\/\//i.test(url)) {
-    return NextResponse.json({ error: "A valid http(s) URL is required" }, { status: 400 });
+  const { url, text, source } = await request.json();
+  const validUrl = typeof url === "string" && /^https?:\/\//i.test(url);
+  const pasted = typeof text === "string" && text.trim().length > 0;
+
+  if (!validUrl && !pasted) {
+    return NextResponse.json(
+      { error: "Provide a valid http(s) URL or paste the job text." },
+      { status: 400 }
+    );
   }
 
-  const scraped = await scrapeJobUrl(supabase, user.id, url);
+  const scraped = pasted
+    ? await extractJobFromText(supabase, user.id, text, validUrl ? url : undefined)
+    : await scrapeJobUrl(supabase, user.id, url);
+
   const companyId = scraped.company_name
     ? await matchOrCreateCompany(supabase, user.id, scraped.company_name)
     : null;
@@ -33,7 +47,7 @@ export async function POST(request: Request) {
       location: scraped.location || null,
       salary_text: scraped.salary_text || null,
       job_description_text: scraped.description || null,
-      job_url: url,
+      job_url: validUrl ? url : null,
       status: "draft",
       source: source === "application_form" ? "application_form" : "suggested",
       application_type: source === "application_form" ? "web_form" : "email",

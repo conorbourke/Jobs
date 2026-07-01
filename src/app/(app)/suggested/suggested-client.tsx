@@ -124,6 +124,8 @@ function UrlSubmitBar({
   onBlank: () => void;
 }) {
   const [url, setUrl] = useState("");
+  const [text, setText] = useState("");
+  const [mode, setMode] = useState<"url" | "text">("url");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -134,7 +136,7 @@ function UrlSubmitBar({
     const res = await fetch("/api/scrape", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify(mode === "text" ? { text, url: url || undefined } : { url }),
     });
     const json = await res.json();
     setBusy(false);
@@ -142,32 +144,60 @@ function UrlSubmitBar({
       setNotice(json.error ?? "Failed to create draft");
       return;
     }
-    if (!json.scraped) {
+    if (!json.scraped && mode === "url") {
       setNotice(
-        "Couldn't read this page automatically (some sites, e.g. LinkedIn, block it or need a login). A draft was created with the URL — paste the job description into it and generate as normal."
+        "Couldn't read this page automatically (some sites, e.g. LinkedIn or Indeed, block it or need a login). A draft was created with the URL — switch to “Paste text”, copy the job posting in, and we'll pre-fill it for you."
       );
     }
     setUrl("");
+    setText("");
     onCreated(json.application.id);
   }
 
   return (
     <div className="card p-5">
-      <form onSubmit={submit} className="flex gap-2">
-        <input
-          className="input"
-          type="url"
-          placeholder="Paste a job URL — we'll pre-fill a draft application"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={busy} className="btn-primary shrink-0">
-          {busy ? "Reading…" : "Create draft"}
-        </button>
-        <button type="button" onClick={onBlank} className="btn-secondary shrink-0">
-          Blank draft
-        </button>
+      <div className="mb-3 flex gap-1 rounded-lg bg-neutral-200/60 p-1 text-xs font-medium">
+        {(
+          [
+            ["url", "From URL"],
+            ["text", "Paste text"],
+          ] as const
+        ).map(([m, label]) => (
+          <button key={m} type="button" onClick={() => setMode(m)}
+            className={`flex-1 rounded-md px-3 py-1.5 transition-colors ${
+              mode === m ? "bg-white shadow-sm" : "text-neutral-500 hover:text-neutral-800"
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={submit} className="space-y-2">
+        {mode === "url" ? (
+          <div className="flex gap-2">
+            <input className="input" type="url" required value={url}
+              placeholder="Paste a job URL — we'll pre-fill a draft application"
+              onChange={(e) => setUrl(e.target.value)} />
+            <button type="submit" disabled={busy} className="btn-primary shrink-0">
+              {busy ? "Reading…" : "Create draft"}
+            </button>
+            <button type="button" onClick={onBlank} className="btn-secondary shrink-0">
+              Blank draft
+            </button>
+          </div>
+        ) : (
+          <>
+            <textarea className="input min-h-32" required value={text}
+              placeholder="Paste the full job posting here (works for LinkedIn, Indeed, anywhere) — the AI will pull out the title, company, location and description."
+              onChange={(e) => setText(e.target.value)} />
+            <input className="input" type="url" value={url}
+              placeholder="Job URL (optional — stored on the application)"
+              onChange={(e) => setUrl(e.target.value)} />
+            <button type="submit" disabled={busy} className="btn-primary">
+              {busy ? "Reading…" : "Create draft from text"}
+            </button>
+          </>
+        )}
       </form>
       {notice && <p className="mt-2 text-sm text-amber-700">{notice}</p>}
     </div>
