@@ -138,9 +138,94 @@ export async function aiComplete(opts: AiCallOptions): Promise<string> {
 /** aiComplete + JSON.parse with fence stripping, for structured outputs. */
 export async function aiJson<T>(opts: AiCallOptions): Promise<T> {
   const raw = await aiComplete(opts);
+  return parseJson<T>(raw);
+}
+
+function parseJson<T>(raw: string): T {
   const cleaned = raw
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/```\s*$/, "");
   return JSON.parse(cleaned) as T;
+}
+
+// Anthropic server-side web tools. Cast bypasses SDK-version type drift; the
+// API validates the tool versions at call time (guarded by the caller).
+const WEB_TOOLS = [
+  { type: "web_search_20260209", name: "web_search" },
+  { type: "web_fetch_20260209", name: "web_fetch" },
+] as unknown as Anthropic.MessageCreateParamsNonStreaming["tools"];
+
+/**
+ * Like aiJson, but Claude retrieves its own source material using Anthropic's
+ * server-side web_fetch / web_search tools (it fetches the URL and/or searches
+ * for it, then answers). Used as a fallback when our own page fetch is blocked.
+ * Returns null on any failure rather than throwing. Forced onto a web-tool-
+ * capable model (Sonnet) regardless of the feature's usual tier.
+ */
+export async function aiWebJson<T>(opts: AiCallOptions): Promise<T | null> {
+  const settings = await getAdminSettings(opts.supabase);
+  await enforceLimit(opts.supabase, opts.userId, settings);
+
+  const { data: profile } = await opts.supabase
+    .from("profiles")
+    .select("openai_api_key_encrypted")
+    .eq("id", opts.userId)
+    .single();
+  const anthropic = await clientForUser(
+    profile ?? { openai_api_key_encrypted: null }
+  );
+  const model = opts.model ?? "claude-sonnet-4-6";
+
+  const messages: Anthropic.MessageParam[] = [
+    { role: "user", content: opts.user },
+  ];
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let final: Anthropic.Message | null = null;
+
+  try {
+    // Server-tool loop: Claude may pause to run web tools; re-send to resume.
+    for (let i = 0; i < 6; i++) {
+      const msg = await anthropic.messages.create({
+        model,
+        max_tokens: opts.maxOutputTokens ?? 2048,
+        system: opts.system,
+        messages,
+        tools: WEB_TOOLS,
+      });
+      inputTokens += msg.usage?.input_tokens ?? 0;
+      outputTokens += msg.usage?.output_tokens ?? 0;
+      if (msg.stop_reason === "pause_turn") {
+        messages.push({ role: "assistant", content: msg.content });
+        continue;
+      }
+      final = msg;
+      break;
+    }
+  } catch {
+    final = null;
+  }
+
+  if (inputTokens || outputTokens) {
+    await opts.supabase.from("ai_usage_log").insert({
+      user_id: opts.userId,
+      feature: opts.feature,
+      model,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      cost_estimate: estimateCost(settings, model, inputTokens, outputTokens),
+    });
+  }
+
+  if (!final) return null;
+  const text = final.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  try {
+    return parseJson<T>(text);
+  } catch {
+    return null;
+  }
 }

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { aiJson } from "./ai";
+import { aiJson, aiWebJson } from "./ai";
 
 export interface ScrapedJob {
   job_title: string;
@@ -109,8 +109,19 @@ export async function scrapeJobUrl(
   url: string
 ): Promise<Partial<ScrapedJob>> {
   const text = await fetchReadableText(url);
-  if (!text) return {};
-  return extractJobFromText(supabase, userId, text, url);
+  if (text) return extractJobFromText(supabase, userId, text, url);
+
+  // Our own fetch was blocked (e.g. bot wall). Let Claude retrieve it itself
+  // via server-side web tools, as a best-effort fallback.
+  const viaWeb = await aiWebJson<ScrapedJob>({
+    supabase,
+    userId,
+    feature: "job_url_scrape",
+    system:
+      'Retrieve the job posting at the given URL (use web_fetch; if that fails, use web_search to find the same posting) and reconstruct it. Return ONLY JSON: {"job_title":string,"company_name":string,"location":string,"salary_text":string,"description":string}. "description" is a clean, faithful ~150-400 word write-up of the role based only on what you retrieve. Use "" for any field you genuinely cannot find. Never invent details.',
+    user: `Job posting URL: ${url}`,
+  });
+  return viaWeb ?? {};
 }
 
 /**
