@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { withTimeout } from "@/lib/timeout";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -12,12 +13,22 @@ export default function ForgotPasswordPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) setError(error.message);
-    else setSent(true);
+    try {
+      const supabase = createClient();
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+        8000,
+        "reset-password"
+      );
+      if (error) setError(error.message);
+      else setSent(true);
+    } catch {
+      setError(
+        "This is taking longer than expected — the service may be temporarily unavailable. Please try again shortly."
+      );
+    }
   }
 
   if (sent) {
