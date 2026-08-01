@@ -166,6 +166,7 @@ Phase 6 — forms:
       flags any altered question text; appendix for unmatched questions
 - [ ] Per-question confidence + edit boxes; re-render uses edits
 - [ ] Side-by-side preview displays original vs completed
+- [ ] 
 
 Phase 7 — dashboard & admin:
 - [ ] Applied counts (all time/month/week/today) and pipeline counts correct
