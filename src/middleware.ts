@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config";
+import { withTimeout } from "@/lib/timeout";
 
 const APP_PREFIXES = [
   "/dashboard",
@@ -55,9 +56,11 @@ export async function middleware(request: NextRequest) {
     });
 
     // Refresh the session (required for SSR auth) and gate the app shell.
+    // Time-boxed so a slow/unreachable Supabase can't hang every request —
+    // on timeout this throws and the catch below handles it gracefully.
     ({
       data: { user },
-    } = await supabase.auth.getUser());
+    } = await withTimeout(supabase.auth.getUser(), 5000, "auth.getUser"));
   } catch {
     // Auth backend unreachable/misconfigured — don't take the whole site down.
     if (isAppPath) {

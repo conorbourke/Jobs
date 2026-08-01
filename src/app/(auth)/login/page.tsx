@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { withTimeout } from "@/lib/timeout";
 
 function LoginForm() {
   const router = useRouter();
@@ -19,7 +20,11 @@ function LoginForm() {
     setError(null);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        8000,
+        "sign-in"
+      );
       if (error) {
         setError(error.message);
         return;

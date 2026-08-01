@@ -17,7 +17,7 @@ export const SUPPORT_EMAIL = "support@example.com"; // update with real domain
  */
 export const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ??
-  "https://usbrvifpnwxixnoplnwj.supabase.co";
+  "https://isjfyizrguzpanumospy.supabase.co";
 export const SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  "sb_publishable_i9lFV3qqF57yr8vQTm3yNA_NEy9k5gu";
+  "sb_publishable_WwL-v6diq02uho6mR0vf8A_wR9qrPPX";

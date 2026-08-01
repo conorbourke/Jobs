@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { APP_NAME } from "@/config";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { withTimeout } from "@/lib/timeout";
 
 // Donation URL comes from admin_settings — render dynamically so changes
 // take effect without a redeploy.
@@ -9,11 +10,15 @@ export const dynamic = "force-dynamic";
 async function getDonationUrl(): Promise<string> {
   try {
     const admin = createAdminClient();
-    const { data } = await admin
-      .from("admin_settings")
-      .select("donation_url")
-      .eq("id", 1)
-      .single();
+    const { data } = await withTimeout(
+      admin
+        .from("admin_settings")
+        .select("donation_url")
+        .eq("id", 1)
+        .single(),
+      5000,
+      "admin_settings.donation_url"
+    );
     return data?.donation_url ?? "https://buymeacoffee.com/";
   } catch {
     return "https://buymeacoffee.com/";
