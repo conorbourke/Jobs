@@ -4,6 +4,7 @@ import {
   extractJobFromText,
   matchOrCreateCompany,
   scrapeJobUrl,
+  type ScrapedJob,
 } from "@/lib/scrape";
 
 /**
@@ -30,9 +31,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const scraped = pasted
-    ? await extractJobFromText(supabase, user.id, text, validUrl ? url : undefined)
-    : await scrapeJobUrl(supabase, user.id, url);
+  // Auto-fill is best-effort: scraping/AI can fail (bot walls, AI not
+  // configured, rate limits). Never let that block the draft — fall back to an
+  // empty result and still create the application with the URL, as documented.
+  let scraped: Partial<ScrapedJob> = {};
+  try {
+    scraped = pasted
+      ? await extractJobFromText(supabase, user.id, text, validUrl ? url : undefined)
+      : await scrapeJobUrl(supabase, user.id, url);
+  } catch {
+    scraped = {};
+  }
 
   const companyId = scraped.company_name
     ? await matchOrCreateCompany(supabase, user.id, scraped.company_name)
