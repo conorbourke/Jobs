@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { extractFileText, UnsupportedFileError } from "@/lib/extract";
 
 /**
  * Extract plain text from an uploaded PDF or Word document (used for job
@@ -18,31 +19,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "file field required" }, { status: 400 });
   }
 
-  const name = file.name.toLowerCase();
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   try {
-    if (name.endsWith(".pdf")) {
-      const { extractText, getDocumentProxy } = await import("unpdf");
-      const pdf = await getDocumentProxy(bytes);
-      const { text } = await extractText(pdf, { mergePages: true });
-      return NextResponse.json({ text: (text as string).trim() });
-    }
-    if (name.endsWith(".docx")) {
-      const mammoth = await import("mammoth");
-      const result = await mammoth.extractRawText({
-        buffer: Buffer.from(bytes),
-      });
-      return NextResponse.json({ text: result.value.trim() });
-    }
-    if (name.endsWith(".txt")) {
-      return NextResponse.json({ text: new TextDecoder().decode(bytes).trim() });
-    }
-    return NextResponse.json(
-      { error: "Unsupported file type — use PDF, .docx or .txt" },
-      { status: 400 }
-    );
+    const text = await extractFileText(file.name, bytes);
+    return NextResponse.json({ text });
   } catch (err) {
+    if (err instanceof UnsupportedFileError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: `Extraction failed: ${err instanceof Error ? err.message : err}` },
       { status: 500 }

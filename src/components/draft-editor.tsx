@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { AttachmentsSection } from "@/components/attachments-section";
 import type {
   Application,
   Company,
@@ -17,7 +18,7 @@ export interface CvCoverOutput {
 }
 
 /**
- * Draft application editor shared by Suggested Jobs and Application Forms:
+ * Draft application editor shared by New Jobs and Application Forms:
  * all fields, JD paste/upload, CV+cover generation with template dropdown,
  * notes, portfolio tickbox, regenerate-with-comment, and submit-to-tracker.
  */
@@ -28,6 +29,9 @@ export function DraftEditor({
   onChanged,
   onClose,
   children,
+  showGeneration = true,
+  showSubmit = true,
+  showAttachments = false,
 }: {
   application: Application;
   companies: Company[];
@@ -35,6 +39,9 @@ export function DraftEditor({
   onChanged: () => void;
   onClose?: () => void;
   children?: React.ReactNode; // extra sections (form completion on Forms tab)
+  showGeneration?: boolean; // CV/cover generation (hidden on capture-only New Jobs)
+  showSubmit?: boolean; // "Mark submitted" (mark-as-applied lives in the Tracker)
+  showAttachments?: boolean; // upload job spec / personal specification docs
 }) {
   const [app, setApp] = useState(application);
   const [saved, setSaved] = useState(false);
@@ -100,13 +107,14 @@ export function DraftEditor({
           {app.job_title || "New draft application"}
         </h2>
         <div className="flex items-center gap-2">
-          {app.status === "draft" ? (
-            <button onClick={markSubmitted} className="btn-primary">
-              Mark submitted → Tracker
-            </button>
-          ) : (
-            <span className="badge bg-green-50 text-green-700">Submitted</span>
-          )}
+          {showSubmit &&
+            (app.status === "draft" ? (
+              <button onClick={markSubmitted} className="btn-primary">
+                Mark submitted → Tracker
+              </button>
+            ) : (
+              <span className="badge bg-green-50 text-green-700">Submitted</span>
+            ))}
           {onClose && (
             <button onClick={onClose} className="btn-ghost px-2 py-1 text-lg leading-none">
               ×
@@ -178,16 +186,20 @@ export function DraftEditor({
           onChange={(e) => setApp({ ...app, job_description_text: e.target.value })} />
       </div>
 
+      {showAttachments && <AttachmentsSection applicationId={app.id} />}
+
       <button onClick={() => saveFields()} className="btn-secondary mt-3">
         {saved ? "Saved ✓" : "Save draft"}
       </button>
 
-      <GenerationSection
-        app={app}
-        cvTemplates={cvTemplates}
-        onBeforeGenerate={() => saveFields()}
-        onPortfolioChange={(v) => setApp({ ...app, attach_portfolio: v })}
-      />
+      {showGeneration && (
+        <GenerationSection
+          app={app}
+          cvTemplates={cvTemplates}
+          onBeforeGenerate={() => saveFields()}
+          onPortfolioChange={(v) => setApp({ ...app, attach_portfolio: v })}
+        />
+      )}
 
       {children}
     </div>
