@@ -85,6 +85,16 @@ export interface Application {
   updated_at: string;
 }
 
+export interface ApplicationAttachment {
+  id: string;
+  user_id: string;
+  application_id: string;
+  storage_path: string;
+  filename: string;
+  extracted_text: string | null;
+  created_at: string;
+}
+
 export interface ApplicationEmail {
   id: string;
   user_id: string;

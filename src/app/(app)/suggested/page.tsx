@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Application, Company, CvTemplate } from "@/lib/types";
 import { SuggestedClient } from "./suggested-client";
 
-export const metadata = { title: "Suggested Jobs" };
+export const metadata = { title: "New Jobs" };
 export const dynamic = "force-dynamic";
 
 export default async function SuggestedPage() {

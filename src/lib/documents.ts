@@ -88,6 +88,7 @@ export async function downloadDocumentBytes(
 interface AppContext {
   application: Application;
   company: Company | null;
+  attachmentTexts: string[];
 }
 
 async function loadAppContext(
@@ -109,7 +110,18 @@ async function loadAppContext(
       .single<Company>();
     company = data;
   }
-  return { application, company };
+
+  // Supporting docs the candidate uploaded (job spec / personal specification).
+  const { data: attachments } = await supabase
+    .from("application_attachments")
+    .select("filename, extracted_text")
+    .eq("application_id", applicationId)
+    .order("created_at");
+  const attachmentTexts = (attachments ?? [])
+    .filter((a) => a.extracted_text?.trim())
+    .map((a) => `--- ${a.filename} ---\n${a.extracted_text!.trim()}`);
+
+  return { application, company, attachmentTexts };
 }
 
 function contextPrompt(ctx: AppContext): string {
@@ -123,6 +135,9 @@ function contextPrompt(ctx: AppContext): string {
     ctx.application.notes ? `My notes: ${ctx.application.notes}` : "",
     ctx.application.job_description_text
       ? `Job description:\n${ctx.application.job_description_text}`
+      : "",
+    ctx.attachmentTexts.length
+      ? `Supporting documents (job spec / personal specification):\n${ctx.attachmentTexts.join("\n\n")}`
       : "",
   ]
     .filter(Boolean)

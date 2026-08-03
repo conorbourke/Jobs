@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sortTrackerRows, type TrackerRow } from "@/lib/sort";
-import type { Application, Company, Interview } from "@/lib/types";
+import type { Application, Company, CvTemplate, Interview } from "@/lib/types";
 import { TrackerClient } from "./tracker-client";
 
 export const metadata = { title: "Tracker" };
@@ -14,16 +14,26 @@ export default async function TrackerPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: applications }, { data: companies }, { data: interviews }] =
-    await Promise.all([
-      supabase.from("applications").select("*").returns<Application[]>(),
-      supabase.from("companies").select("*").order("name").returns<Company[]>(),
-      supabase
-        .from("interviews")
-        .select("*")
-        .order("scheduled_at")
-        .returns<Interview[]>(),
-    ]);
+  const [
+    { data: applications },
+    { data: companies },
+    { data: interviews },
+    { data: templates },
+  ] = await Promise.all([
+    supabase.from("applications").select("*").returns<Application[]>(),
+    supabase.from("companies").select("*").order("name").returns<Company[]>(),
+    supabase
+      .from("interviews")
+      .select("*")
+      .order("scheduled_at")
+      .returns<Interview[]>(),
+    supabase
+      .from("cv_templates")
+      .select("*")
+      .order("is_master", { ascending: false })
+      .order("created_at")
+      .returns<CvTemplate[]>(),
+  ]);
 
   const companyNames = new Map((companies ?? []).map((c) => [c.id, c.name]));
   const now = Date.now();
@@ -41,16 +51,23 @@ export default async function TrackerPage() {
     next_interview_at: nextInterview.get(a.id) ?? null,
   }));
 
-  const active = sortTrackerRows(rows.filter((r) => r.status !== "rejected"));
+  const notApplied = rows
+    .filter((r) => r.status === "draft")
+    .sort((a, b) => b.date_added.localeCompare(a.date_added));
+  const applied = sortTrackerRows(
+    rows.filter((r) => r.status !== "rejected" && r.status !== "draft")
+  );
   const rejected = rows
     .filter((r) => r.status === "rejected")
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
   return (
     <TrackerClient
-      active={active}
+      notApplied={notApplied}
+      applied={applied}
       rejected={rejected}
       companies={companies ?? []}
+      cvTemplates={templates ?? []}
     />
   );
 }

@@ -54,7 +54,7 @@ export function FormsClient({
         </button>
       </div>
       <p className="text-sm text-neutral-500">
-        Same flow as Suggested Jobs, plus AI form completion: paste a form URL
+        Same flow as New Jobs, plus AI form completion: paste a form URL
         or the questions themselves, or upload a Word/PDF form — answers are
         placed without disturbing the original layout, with a verification
         preview before you download.

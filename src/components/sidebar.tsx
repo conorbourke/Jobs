@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 const TABS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/tracker", label: "Tracker" },
-  { href: "/suggested", label: "Suggested Jobs" },
+  { href: "/suggested", label: "New Jobs" },
   { href: "/forms", label: "Application Forms" },
   { href: "/templates", label: "CV Templates" },
   { href: "/settings", label: "Settings" },

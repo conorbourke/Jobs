@@ -47,7 +47,16 @@ export function SuggestedClient({
 
   return (
     <div className="max-w-4xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Suggested Jobs</h1>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">New Jobs</h1>
+        <p className="mt-1 text-sm text-neutral-500">
+          Capture a job — paste a URL or the posting text, and attach any job
+          spec / personal specification docs. Tailor your CV & cover letter and
+          mark it applied over in the{" "}
+          <span className="font-medium text-neutral-700">Tracker → Not applied</span>{" "}
+          section.
+        </p>
+      </div>
 
       {/* 1. URL submit bar */}
       <UrlSubmitBar
@@ -58,7 +67,7 @@ export function SuggestedClient({
         onBlank={() => createBlankDraft()}
       />
 
-      {/* 2. Draft editor */}
+      {/* 2. Draft editor — capture only; generation + mark-applied live in the Tracker */}
       {selected && (
         <DraftEditor
           key={selected.id}
@@ -67,6 +76,9 @@ export function SuggestedClient({
           cvTemplates={cvTemplates}
           onChanged={() => router.refresh()}
           onClose={() => setSelectedId(null)}
+          showGeneration={false}
+          showSubmit={false}
+          showAttachments
         />
       )}
 
