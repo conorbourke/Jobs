@@ -116,7 +116,7 @@ export function TrackerClient({
       </div>
 
       {/* ---------- Not applied: tailor CV/cover, then mark applied ---------- */}
-      <section className="rounded-2xl border border-sky-200 bg-sky-50/60 p-5">
+      <section className="rounded-2xl border border-sky-200 bg-sky-100/60 p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-sky-900">Not applied</h2>
@@ -176,7 +176,7 @@ export function TrackerClient({
       </section>
 
       {/* ---------- Applied: the tracker ---------- */}
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-blue-200 bg-blue-50/60 p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-blue-900">Applied</h2>
