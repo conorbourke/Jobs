@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiLimitError } from "@/lib/ai";
 import { generateCvAndCover } from "@/lib/documents";
-import { PdfConfigError } from "@/lib/pdf/render";
+import { PdfConfigError, PdfRateLimitError } from "@/lib/pdf/render";
 
 /**
  * Generate (or regenerate with notes) the tailored CV + cover letter + email
@@ -47,7 +47,12 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
-    const status = err instanceof AiLimitError ? 429 : err instanceof PdfConfigError ? 503 : 500;
+    const status =
+      err instanceof AiLimitError || err instanceof PdfRateLimitError
+        ? 429
+        : err instanceof PdfConfigError
+          ? 503
+          : 500;
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Generation failed" },
       { status }
