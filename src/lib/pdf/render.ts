@@ -10,10 +10,12 @@
  * form Q&A) is just a template + data passed through this one function.
  */
 
+import { CLOUDFLARE_ACCOUNT_ID } from "@/config";
+
 export class PdfConfigError extends Error {
   constructor() {
     super(
-      "PDF rendering is not configured. Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN (Browser Rendering permission)."
+      "PDF rendering is not configured. Set the CLOUDFLARE_API_TOKEN secret (Browser Rendering permission) on the Worker."
     );
     this.name = "PdfConfigError";
   }
@@ -32,7 +34,7 @@ export class PdfRateLimitError extends Error {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function renderHtmlToPdf(html: string): Promise<Uint8Array> {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const accountId = CLOUDFLARE_ACCOUNT_ID;
   const token = process.env.CLOUDFLARE_API_TOKEN;
   if (!accountId || !token) throw new PdfConfigError();
 

@@ -21,3 +21,14 @@ export const SUPABASE_URL =
 export const SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
   "sb_publishable_WwL-v6diq02uho6mR0vf8A_wR9qrPPX";
+
+/**
+ * Cloudflare account that owns the `jobs` Worker. NOT a secret (it appears in
+ * dashboard URLs). Committed as a fallback because Cloudflare Workers Builds
+ * runs `wrangler deploy`, which wipes plain-text Worker Variables on every
+ * deploy — so a dashboard-set CLOUDFLARE_ACCOUNT_ID disappears. Baking it in
+ * keeps PDF rendering + URL scraping working regardless of the dashboard.
+ * The CLOUDFLARE_API_TOKEN stays env-only — it IS a secret, never commit it.
+ */
+export const CLOUDFLARE_ACCOUNT_ID =
+  process.env.CLOUDFLARE_ACCOUNT_ID ?? "eebaaf223ab9ae666f8c5d8461268695";

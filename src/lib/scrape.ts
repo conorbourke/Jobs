@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { aiJson, aiWebJson } from "./ai";
+import { CLOUDFLARE_ACCOUNT_ID } from "@/config";
 
 export interface ScrapedJob {
   job_title: string;
@@ -40,7 +41,7 @@ const BROWSER_UA =
  * could be retrieved.
  */
 export async function fetchReadableText(url: string): Promise<string> {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const accountId = CLOUDFLARE_ACCOUNT_ID;
   const token = process.env.CLOUDFLARE_API_TOKEN;
 
   if (accountId && token) {
