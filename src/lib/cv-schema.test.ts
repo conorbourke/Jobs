@@ -12,6 +12,7 @@ const master: CvContent = {
       dates: "Jan 2020 – Mar 2023",
       role_title: "Ops Lead",
       responsibilities: ["Ran the warehouse"],
+      achievements: ["Cut costs 10%"],
     },
   ],
   licenses: ["Forklift licence"],
@@ -21,13 +22,13 @@ const master: CvContent = {
 };
 
 describe("mergeWithMaster — fixed slots are inherited, variable slots tailored", () => {
-  it("never lets a role template change company, dates or education", () => {
+  it("never lets a role template change company, dates, job title or education", () => {
     const merged = mergeWithMaster(master, {
       role_title: "Logistics Director",
       about_me: "Tailored summary for a logistics role.",
       licenses: ["Forklift licence", "HGV"],
       experience_overrides: [
-        { role_title: "Logistics Lead", responsibilities: ["Optimised routing"] },
+        { responsibilities: ["Optimised routing"], achievements: ["Saved £1m"] },
       ],
     });
 
@@ -36,14 +37,15 @@ describe("mergeWithMaster — fixed slots are inherited, variable slots tailored
     expect(merged.contact_line).toBe("conor@example.com");
     expect(merged.experience[0].company).toBe("Acme Ltd");
     expect(merged.experience[0].dates).toBe("Jan 2020 – Mar 2023");
+    expect(merged.experience[0].role_title).toBe("Ops Lead"); // job title never changes
     expect(merged.education).toEqual(master.education);
 
     // Variable — taken from the override.
     expect(merged.role_title).toBe("Logistics Director");
     expect(merged.about_me).toBe("Tailored summary for a logistics role.");
     expect(merged.licenses).toEqual(["Forklift licence", "HGV"]);
-    expect(merged.experience[0].role_title).toBe("Logistics Lead");
     expect(merged.experience[0].responsibilities).toEqual(["Optimised routing"]);
+    expect(merged.experience[0].achievements).toEqual(["Saved £1m"]);
   });
 
   it("falls back to master values when no override is supplied", () => {
@@ -57,7 +59,8 @@ describe("mergeWithMaster — fixed slots are inherited, variable slots tailored
     });
     expect(merged.experience).toHaveLength(1);
     expect(merged.experience[0].company).toBe("Acme Ltd");
-    expect(merged.experience[0].role_title).toBe("Ops Lead"); // not overridden → master
+    expect(merged.experience[0].role_title).toBe("Ops Lead"); // fixed → master
     expect(merged.experience[0].responsibilities).toEqual(["only responsibilities changed"]);
+    expect(merged.experience[0].achievements).toEqual(["Cut costs 10%"]); // fallback to master
   });
 });

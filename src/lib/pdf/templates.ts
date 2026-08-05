@@ -7,10 +7,11 @@ import type { CvContent } from "../cv-schema";
  */
 
 const BASE_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { -webkit-print-color-adjust: exact; }
   body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Lato', 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
     color: #1a1a1a;
     font-size: 10.5pt;
     line-height: 1.45;
@@ -30,10 +31,26 @@ const BASE_CSS = `
   .small { font-size: 9pt; }
 `;
 
-// Horizontal-only page padding: vertical spacing comes from the PDF page
-// margin (see DOC_MARGIN in documents.ts) so every page — including page 2+ —
-// gets consistent top/bottom breathing room.
-const DOC_PADDING_CSS = `.page { padding: 0 16mm; }`;
+// Split "email · phone · Location · linkedin.com/in/x" into its parts.
+function parseContactLine(line: string): {
+  email: string;
+  phone: string;
+  link: string;
+  location: string;
+} {
+  const parts = line.split(/[·•|]/).map((s) => s.trim()).filter(Boolean);
+  let email = "";
+  let phone = "";
+  let link = "";
+  const rest: string[] = [];
+  for (const p of parts) {
+    if (!email && /@/.test(p)) email = p;
+    else if (!link && /(linkedin|https?:\/\/|www\.|\.com\/)/i.test(p)) link = p;
+    else if (!phone && /\+?\d[\d\s()-]{6,}\d/.test(p)) phone = p;
+    else rest.push(p);
+  }
+  return { email, phone, link, location: rest.join(" · ") };
+}
 
 function esc(s: string | null | undefined): string {
   return (s ?? "")
@@ -52,28 +69,68 @@ function page(title: string, body: string, extraCss = ""): string {
 
 /* ------------------------------- CV ------------------------------- */
 
-export function cvHtml(cv: CvContent): string {
-  const body = `
-    <header>
-      <h1>${esc(cv.full_name)}</h1>
-      <p class="muted small" style="margin-top:2pt;">${esc(cv.contact_line)}</p>
-    </header>
+const CV_CSS = `
+  .page { padding: 0 18mm; }
+  h1, h2, h3 { font-weight: 700; }
+  .cv-name { text-align: center; font-size: 16pt; font-weight: 700; margin-bottom: 2pt; }
+  .cv-contact { text-align: center; font-size: 10pt; margin: 0; }
+  .cv-summary { text-align: center; margin: 9pt 0 0; }
+  .cv-rule { border: 0; border-top: 1px solid #cfcfcf; margin: 11pt 0; }
+  .cv-section { text-align: center; font-weight: 700; font-size: 11.5pt; margin: 2pt 0 9pt; }
+  .cv-job { margin-bottom: 4pt; page-break-inside: avoid; }
+  .cv-job-title { font-weight: 700; }
+  .cv-job-dates { font-style: italic; color: #333; margin: 0 0 5pt; }
+  .cv-sublabel { font-weight: 700; margin: 7pt 0 4pt; }
+  .cv-list { padding-left: 16pt; margin: 0 0 6pt; }
+  .cv-list li { margin-bottom: 3pt; }
+  .cv-edu { text-align: center; margin-bottom: 6pt; }
+  .cv-edu .q { font-weight: 700; }
+  .cv-cert { text-align: center; margin: 0 0 2pt; }
+`;
 
-    ${cv.about_me ? `<h2>About Me</h2><p>${esc(cv.about_me)}</p>` : ""}
+export function cvHtml(cv: CvContent): string {
+  const c = parseContactLine(cv.contact_line);
+  const contactLines = [c.email, c.link].filter(Boolean);
+
+  const experience = cv.experience
+    .map((exp, i) => {
+      const achievements = exp.achievements ?? [];
+      return `
+      <div class="cv-job">
+        <p class="cv-job-title">${esc(exp.role_title)} | ${esc(exp.company)}</p>
+        <p class="cv-job-dates">${esc(exp.dates)}</p>
+        <ul class="cv-list">${exp.responsibilities.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+        ${
+          achievements.length
+            ? `<p class="cv-sublabel">Key Achievements:</p><ul class="cv-list">${achievements
+                .map((a) => `<li>${esc(a)}</li>`)
+                .join("")}</ul>`
+            : ""
+        }
+      </div>
+      ${i < cv.experience.length - 1 ? `<hr class="cv-rule">` : ""}`;
+    })
+    .join("");
+
+  const body = `
+    <p class="cv-name">${esc(cv.full_name)}</p>
+    ${contactLines.map((l) => `<p class="cv-contact">${esc(l)}</p>`).join("")}
+
+    ${cv.about_me ? `<p class="cv-summary">${esc(cv.about_me)}</p>` : ""}
+
+    <hr class="cv-rule">
+
+    ${cv.experience.length ? `<p class="cv-section">Professional Experience</p>${experience}` : ""}
 
     ${
-      cv.experience.length
-        ? `<h2>Experience</h2>` +
-          cv.experience
+      cv.education.length
+        ? `<hr class="cv-rule"><p class="cv-section">Education</p>` +
+          cv.education
             .map(
-              (exp) => `
-      <div style="margin-bottom:10pt;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;">
-          <strong>${esc(exp.role_title)}</strong>
-          <span class="muted small">${esc(exp.dates)}</span>
-        </div>
-        <div class="muted" style="font-size:9.5pt;margin-bottom:3pt;">${esc(exp.company)}</div>
-        <ul>${exp.responsibilities.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+              (ed) => `
+      <div class="cv-edu">
+        <p class="q" style="margin:0;">${esc(ed.qualification)}</p>
+        <p style="margin:0;">${esc(ed.institution)}${ed.dates ? `, ${esc(ed.dates)}` : ""}</p>
       </div>`
             )
             .join("")
@@ -82,65 +139,66 @@ export function cvHtml(cv: CvContent): string {
 
     ${
       cv.licenses.length
-        ? `<h2>Licenses &amp; Qualifications</h2><ul>${cv.licenses
-            .map((l) => `<li>${esc(l)}</li>`)
-            .join("")}</ul>`
-        : ""
-    }
-
-    ${
-      cv.education.length
-        ? `<h2>Education</h2>` +
-          cv.education
-            .map(
-              (ed) => `
-      <div style="display:flex;justify-content:space-between;margin-bottom:4pt;">
-        <span><strong>${esc(ed.qualification)}</strong> — ${esc(ed.institution)}</span>
-        <span class="muted small">${esc(ed.dates)}</span>
-      </div>`
-            )
-            .join("")
+        ? `<hr class="cv-rule"><p class="cv-section">Technical Skills and Qualifications</p>` +
+          cv.licenses.map((l) => `<p class="cv-cert">${esc(l)}</p>`).join("")
         : ""
     }
   `;
-  return page(`CV — ${cv.full_name}`, body, DOC_PADDING_CSS);
+  return page(`CV — ${cv.full_name}`, body, CV_CSS);
 }
 
 /* ---------------------------- Cover letter ---------------------------- */
 
+const COVER_CSS = `
+  .page { padding: 0 18mm; }
+  .cl-head { text-align: right; margin-bottom: 18mm; }
+  .cl-head p { margin: 0; }
+  .cl-salutation { margin-bottom: 5mm; }
+  .cl-body p { margin-bottom: 4mm; text-align: justify; }
+  .cl-signoff { margin-top: 7mm; }
+  .cl-signoff p { margin: 0; }
+  .cl-name { font-weight: 700; }
+`;
+
 export function coverLetterHtml(opts: {
   bodyText: string; // AI-tailored body paragraphs only (no salutation/sign-off)
   senderName: string;
+  addressLines?: string[]; // postal address lines under the name (right block)
   senderEmail?: string | null;
   senderPhone?: string | null;
-  date: string; // e.g. "5th August 2026"
+  date: string; // e.g. "24 June 2026"
   salutation: string; // e.g. "Dear Hiring Manager,"
   signatureDataUrl?: string | null;
 }): string {
   const paragraphs = opts.bodyText
     .split(/\n{2,}/)
-    .map((p) => `<p>${esc(p.trim()).replace(/\n/g, "<br>")}</p>`)
+    .map((p) => esc(p.trim()).replace(/\n/g, "<br>"))
+    .filter(Boolean)
+    .map((p) => `<p>${p}</p>`)
+    .join("");
+  const headLines = [opts.senderName, ...(opts.addressLines ?? []), opts.date]
+    .filter(Boolean)
+    .map((l) => `<p>${esc(l)}</p>`)
     .join("");
   const contact = [opts.senderEmail, opts.senderPhone]
     .filter(Boolean)
-    .map((c) => `<p class="muted small" style="margin:0;">${esc(c!)}</p>`)
+    .map((c) => `<p>${esc(c!)}</p>`)
     .join("");
   const body = `
-    <p style="font-weight:600;">${esc(opts.senderName)}</p>
-    <p class="muted small" style="margin-bottom:10mm;">${esc(opts.date)}</p>
-    <p style="margin-bottom:5mm;">${esc(opts.salutation)}</p>
-    <div>${paragraphs}</div>
-    <div style="margin-top:8mm;">
-      <p style="margin-bottom:2mm;">Warm regards,</p>
+    <div class="cl-head">${headLines}</div>
+    <p class="cl-salutation">${esc(opts.salutation)}</p>
+    <div class="cl-body">${paragraphs}</div>
+    <div class="cl-signoff">
+      <p>Warm regards,</p>
+      <p class="cl-name">${esc(opts.senderName)}</p>
       ${
         opts.signatureDataUrl
           ? `<img src="${opts.signatureDataUrl}" alt="signature" style="max-height:20mm;max-width:55mm;display:block;margin:1mm 0 2mm;">`
-          : ""
+          : `<div style="height:8mm;"></div>`
       }
-      <p style="margin:0;">${esc(opts.senderName)}</p>
       ${contact}
     </div>`;
-  return page(`Cover letter — ${opts.senderName}`, body, DOC_PADDING_CSS);
+  return page(`Cover letter — ${opts.senderName}`, body, COVER_CSS);
 }
 
 /* ------------------------- Brief / prep (AI text) ------------------------- */
