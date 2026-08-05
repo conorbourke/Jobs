@@ -21,14 +21,9 @@ import type {
 // vertical 18mm so every page — including page 2+ — has top/bottom spacing.
 const DOC_MARGIN = { top: "18mm", bottom: "18mm", left: "0", right: "0" };
 
-/** Format a date the way the cover letter shows it, e.g. "5th August 2026". */
+/** Format a date the way the cover letter shows it, e.g. "24 June 2026". */
 function formatCoverDate(d: Date): string {
-  const day = d.getDate();
-  const j = day % 10;
-  const k = day % 100;
-  const suffix =
-    j === 1 && k !== 11 ? "st" : j === 2 && k !== 12 ? "nd" : j === 3 && k !== 13 ? "rd" : "th";
-  return `${day}${suffix} ${d.toLocaleDateString("en-GB", { month: "long" })} ${d.getFullYear()}`;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
 /* --------------------------- versioned storage --------------------------- */
@@ -244,7 +239,8 @@ interface AiCvOutput {
   role_title: string;
   about_me: string;
   licenses: string[];
-  experience_overrides: { role_title: string; responsibilities: string[] }[];
+  experience_overrides: { responsibilities: string[]; achievements: string[] }[];
+  cover_salutation: string;
   cover_letter_body: string;
   email_subject: string;
   email_body: string;
@@ -314,9 +310,10 @@ Return JSON exactly:
  "role_title": string,                  // headline title tuned to the job
  "about_me": string,                    // 3-5 sentence professional summary tuned to the job
  "licenses": [string],                  // reordered/filtered from the candidate's real licenses & qualifications; never add new ones
- "experience_overrides": [              // SAME length & order as the candidate's experience array
-   {"role_title": string, "responsibilities": [string]}  // role_title: repeat the master's job title EXACTLY as given — never change it, add suffixes or descriptors. Only rephrase/reprioritise the real responsibilities; never fabricate.
+ "experience_overrides": [              // SAME length & order as the candidate's experience array. NEVER include or change job titles/companies — those are fixed.
+   {"responsibilities": [string], "achievements": [string]}  // responsibilities: 2-4 tailored bullets from the candidate's REAL duties. achievements: 0-3 "Key Achievements" bullets (quantified where the master gives numbers) from the candidate's REAL results — use [] if none. Never fabricate.
  ],
+ "cover_salutation": string,            // "Dear <name>," if a specific recipient/hiring-contact name is given in the job description or notes; otherwise exactly "Dear Hiring Manager,"
  "cover_letter_body": string,           // body paragraphs ONLY, separated by blank lines. Do NOT include a salutation ("Dear ..."), a sign-off ("Warm regards"), the sender's name, or contact details — the template adds those. Professional, specific, UK English
  "email_subject": string,               // e.g. "Application for <role> — <name>"
  "email_body": string                   // short email: please find attached CV and cover letter, 3-6 sentences, UK English
@@ -335,6 +332,7 @@ ${portfolioInstruction}`,
     licenses: out.licenses,
     experience_overrides: out.experience_overrides.map((e) => ({
       responsibilities: e.responsibilities,
+      achievements: e.achievements,
     })),
   });
 
@@ -346,6 +344,10 @@ ${portfolioInstruction}`,
   const contactLine = master.content.contact_line;
   const senderEmail = contactLine.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] ?? null;
   const senderPhone = contactLine.match(/\+?\d[\d\s()]{7,}\d/)?.[0]?.trim() ?? null;
+  const addressLines = (master.content.address ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   let signatureDataUrl: string | null = null;
   if (coverTemplate?.signature_image_path) {
@@ -364,10 +366,11 @@ ${portfolioInstruction}`,
     coverLetterHtml({
       bodyText: out.cover_letter_body,
       senderName: master.content.full_name,
+      addressLines,
       senderEmail,
       senderPhone,
       date: formatCoverDate(new Date()),
-      salutation: "Dear Hiring Manager,",
+      salutation: out.cover_salutation?.trim() || "Dear Hiring Manager,",
       signatureDataUrl,
     }),
     { margin: DOC_MARGIN }
