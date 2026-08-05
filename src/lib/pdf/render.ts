@@ -33,7 +33,24 @@ export class PdfRateLimitError extends Error {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function renderHtmlToPdf(html: string): Promise<Uint8Array> {
+export interface PdfMargin {
+  top: string;
+  bottom: string;
+  left: string;
+  right: string;
+}
+
+const ZERO_MARGIN: PdfMargin = { top: "0", bottom: "0", left: "0", right: "0" };
+
+/**
+ * Render HTML to a PDF via Cloudflare Browser Rendering. `margin` sets the
+ * per-page PDF margin — pass a non-zero top/bottom so multi-page documents get
+ * breathing room at the top of every page (page 1 and continuation pages).
+ */
+export async function renderHtmlToPdf(
+  html: string,
+  opts: { margin?: PdfMargin } = {}
+): Promise<Uint8Array> {
   const accountId = CLOUDFLARE_ACCOUNT_ID;
   const token = process.env.CLOUDFLARE_API_TOKEN;
   if (!accountId || !token) throw new PdfConfigError();
@@ -44,7 +61,7 @@ export async function renderHtmlToPdf(html: string): Promise<Uint8Array> {
     pdfOptions: {
       format: "a4",
       printBackground: true,
-      margin: { top: "0", bottom: "0", left: "0", right: "0" },
+      margin: opts.margin ?? ZERO_MARGIN,
     },
   });
 

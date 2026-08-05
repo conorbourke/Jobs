@@ -30,6 +30,11 @@ const BASE_CSS = `
   .small { font-size: 9pt; }
 `;
 
+// Horizontal-only page padding: vertical spacing comes from the PDF page
+// margin (see DOC_MARGIN in documents.ts) so every page — including page 2+ —
+// gets consistent top/bottom breathing room.
+const DOC_PADDING_CSS = `.page { padding: 0 16mm; }`;
+
 function esc(s: string | null | undefined): string {
   return (s ?? "")
     .replace(/&/g, "&amp;")
@@ -51,8 +56,7 @@ export function cvHtml(cv: CvContent): string {
   const body = `
     <header>
       <h1>${esc(cv.full_name)}</h1>
-      <p style="font-size:12pt;color:#4f46e5;font-weight:500;margin-top:2pt;">${esc(cv.role_title)}</p>
-      <p class="muted small">${esc(cv.contact_line)}</p>
+      <p class="muted small" style="margin-top:2pt;">${esc(cv.contact_line)}</p>
     </header>
 
     ${cv.about_me ? `<h2>About Me</h2><p>${esc(cv.about_me)}</p>` : ""}
@@ -65,9 +69,10 @@ export function cvHtml(cv: CvContent): string {
               (exp) => `
       <div style="margin-bottom:10pt;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;">
-          <strong>${esc(exp.role_title)} · ${esc(exp.company)}</strong>
+          <strong>${esc(exp.role_title)}</strong>
           <span class="muted small">${esc(exp.dates)}</span>
         </div>
+        <div class="muted" style="font-size:9.5pt;margin-bottom:3pt;">${esc(exp.company)}</div>
         <ul>${exp.responsibilities.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
       </div>`
             )
@@ -98,31 +103,44 @@ export function cvHtml(cv: CvContent): string {
         : ""
     }
   `;
-  return page(`CV — ${cv.full_name}`, body);
+  return page(`CV — ${cv.full_name}`, body, DOC_PADDING_CSS);
 }
 
 /* ---------------------------- Cover letter ---------------------------- */
 
 export function coverLetterHtml(opts: {
-  bodyText: string; // merge fields already applied
+  bodyText: string; // AI-tailored body paragraphs only (no salutation/sign-off)
   senderName: string;
+  senderEmail?: string | null;
+  senderPhone?: string | null;
+  date: string; // e.g. "5th August 2026"
+  salutation: string; // e.g. "Dear Hiring Manager,"
   signatureDataUrl?: string | null;
 }): string {
   const paragraphs = opts.bodyText
     .split(/\n{2,}/)
-    .map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`)
+    .map((p) => `<p>${esc(p.trim()).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  const contact = [opts.senderEmail, opts.senderPhone]
+    .filter(Boolean)
+    .map((c) => `<p class="muted small" style="margin:0;">${esc(c!)}</p>`)
     .join("");
   const body = `
-    <div style="margin-top:6mm;">${paragraphs}</div>
-    <div style="margin-top:14mm;">
+    <p style="font-weight:600;">${esc(opts.senderName)}</p>
+    <p class="muted small" style="margin-bottom:10mm;">${esc(opts.date)}</p>
+    <p style="margin-bottom:5mm;">${esc(opts.salutation)}</p>
+    <div>${paragraphs}</div>
+    <div style="margin-top:8mm;">
+      <p style="margin-bottom:2mm;">Warm regards,</p>
       ${
         opts.signatureDataUrl
-          ? `<img src="${opts.signatureDataUrl}" alt="signature" style="max-height:22mm;max-width:60mm;display:block;margin-bottom:3mm;">`
+          ? `<img src="${opts.signatureDataUrl}" alt="signature" style="max-height:20mm;max-width:55mm;display:block;margin:1mm 0 2mm;">`
           : ""
       }
-      <p>${esc(opts.senderName)}</p>
+      <p style="margin:0;">${esc(opts.senderName)}</p>
+      ${contact}
     </div>`;
-  return page(`Cover letter — ${opts.senderName}`, body);
+  return page(`Cover letter — ${opts.senderName}`, body, DOC_PADDING_CSS);
 }
 
 /* ------------------------- Brief / prep (AI text) ------------------------- */

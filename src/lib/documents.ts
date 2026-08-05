@@ -17,6 +17,20 @@ import type {
   GeneratedDocument,
 } from "./types";
 
+// Per-page PDF margin for CV & cover: horizontal 0 (templates pad the sides),
+// vertical 18mm so every page — including page 2+ — has top/bottom spacing.
+const DOC_MARGIN = { top: "18mm", bottom: "18mm", left: "0", right: "0" };
+
+/** Format a date the way the cover letter shows it, e.g. "5th August 2026". */
+function formatCoverDate(d: Date): string {
+  const day = d.getDate();
+  const j = day % 10;
+  const k = day % 100;
+  const suffix =
+    j === 1 && k !== 11 ? "st" : j === 2 && k !== 12 ? "nd" : j === 3 && k !== 13 ? "rd" : "th";
+  return `${day}${suffix} ${d.toLocaleDateString("en-GB", { month: "long" })} ${d.getFullYear()}`;
+}
+
 /* --------------------------- versioned storage --------------------------- */
 
 /**
@@ -301,9 +315,9 @@ Return JSON exactly:
  "about_me": string,                    // 3-5 sentence professional summary tuned to the job
  "licenses": [string],                  // reordered/filtered from the candidate's real licenses & qualifications; never add new ones
  "experience_overrides": [              // SAME length & order as the candidate's experience array
-   {"role_title": string, "responsibilities": [string]}  // rephrase/reprioritise real responsibilities for relevance; never fabricate
+   {"role_title": string, "responsibilities": [string]}  // role_title: repeat the master's job title EXACTLY as given — never change it, add suffixes or descriptors. Only rephrase/reprioritise the real responsibilities; never fabricate.
  ],
- "cover_letter_body": string,           // full cover letter body, paragraphs separated by blank lines; no salutation placeholders other than what the template provides; professional, specific, UK English
+ "cover_letter_body": string,           // body paragraphs ONLY, separated by blank lines. Do NOT include a salutation ("Dear ..."), a sign-off ("Warm regards"), the sender's name, or contact details — the template adds those. Professional, specific, UK English
  "email_subject": string,               // e.g. "Application for <role> — <name>"
  "email_body": string                   // short email: please find attached CV and cover letter, 3-6 sentences, UK English
 }
@@ -312,38 +326,26 @@ ${portfolioInstruction}`,
     user: `JOB CONTEXT:\n${contextPrompt(ctx)}\n\nCANDIDATE'S SELECTED CV TEMPLATE ("${template.label}"):\n${JSON.stringify(template.content)}\n\nMASTER CV (fixed facts — companies, dates, education are immutable):\n${JSON.stringify(master.content)}\n\n${opts.userNotes ? `SPECIFIC INFORMATION FROM THE CANDIDATE TO USE: ${opts.userNotes}` : ""}${previousContext}`,
   });
 
-  // Structurally enforce fixed slots: merge AI output over the master.
+  // Structurally enforce fixed slots: merge AI output over the master. Job
+  // titles and companies stay exactly as the master — only the responsibilities
+  // are re-prioritised — so the AI can't append invented role suffixes.
   const cvContent = mergeWithMaster(master.content, {
     role_title: out.role_title,
     about_me: out.about_me,
     licenses: out.licenses,
-    experience_overrides: out.experience_overrides,
+    experience_overrides: out.experience_overrides.map((e) => ({
+      responsibilities: e.responsibilities,
+    })),
   });
 
   // Render CV through the exact same pipeline as the templates themselves.
-  const cvPdf = await renderHtmlToPdf(cvHtml(cvContent));
+  const cvPdf = await renderHtmlToPdf(cvHtml(cvContent), { margin: DOC_MARGIN });
 
-  // Cover letter: apply merge fields from the user's cover template flow.
-  // {{body}} marks where the AI-tailored letter goes; without it the tailored
-  // body is appended after the template's framing text.
-  let coverBody = out.cover_letter_body;
-  if (coverTemplate?.body?.trim()) {
-    const hasBodyField = /\{\{\s*body\s*\}\}/.test(coverTemplate.body);
-    const templateText = hasBodyField
-      ? coverTemplate.body
-      : coverTemplate.body + "\n\n{{body}}";
-    coverBody = applyMergeFields(templateText, {
-      name: master.content.full_name,
-      company: ctx.company?.name ?? "",
-      role: ctx.application.job_title,
-      date: new Date().toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
-      body: out.cover_letter_body,
-    });
-  }
+  // Cover letter follows a fixed format (name, date, salutation, body, sign-off,
+  // signature, contact). The AI supplies the body paragraphs only.
+  const contactLine = master.content.contact_line;
+  const senderEmail = contactLine.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] ?? null;
+  const senderPhone = contactLine.match(/\+?\d[\d\s()]{7,}\d/)?.[0]?.trim() ?? null;
 
   let signatureDataUrl: string | null = null;
   if (coverTemplate?.signature_image_path) {
@@ -360,10 +362,15 @@ ${portfolioInstruction}`,
 
   const coverPdf = await renderHtmlToPdf(
     coverLetterHtml({
-      bodyText: coverBody,
+      bodyText: out.cover_letter_body,
       senderName: master.content.full_name,
+      senderEmail,
+      senderPhone,
+      date: formatCoverDate(new Date()),
+      salutation: "Dear Hiring Manager,",
       signatureDataUrl,
-    })
+    }),
+    { margin: DOC_MARGIN }
   );
 
   const sharedMeta = {
@@ -397,13 +404,4 @@ ${portfolioInstruction}`,
     email_subject: out.email_subject,
     email_body: out.email_body,
   };
-}
-
-function applyMergeFields(
-  template: string,
-  fields: Record<string, string>
-): string {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) =>
-    fields[key] !== undefined ? fields[key] : `{{${key}}}`
-  );
 }
