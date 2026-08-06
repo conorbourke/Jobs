@@ -308,10 +308,10 @@ export async function generateCvAndCover(opts: {
 Return JSON exactly:
 {
  "role_title": string,                  // headline title tuned to the job
- "about_me": string,                    // 3-5 sentence professional summary tuned to the job
+ "about_me": string,                    // concise professional summary tuned to the job — 2-3 sentences, MUST fit within 4 lines (roughly 50-55 words max)
  "licenses": [string],                  // reordered/filtered from the candidate's real licenses & qualifications; never add new ones
  "experience_overrides": [              // SAME length & order as the candidate's experience array. NEVER include or change job titles/companies — those are fixed.
-   {"responsibilities": [string], "achievements": [string]}  // responsibilities: EXACTLY 3-4 concise tailored bullets (one line each) from the candidate's REAL duties. achievements: 0-2 "Key Achievements" bullets (quantified where the master gives numbers) from the candidate's REAL results — use [] if none. Never fabricate.
+   {"responsibilities": [string], "achievements": [string]}  // responsibilities: 2-4 tailored bullets from the candidate's REAL duties. achievements: 0-3 "Key Achievements" bullets (quantified where the master gives numbers) from the candidate's REAL results — use [] if none. Never fabricate.
  ],
  "cover_salutation": string,            // "Dear <name>," if a specific recipient/hiring-contact name is given in the job description or notes; otherwise exactly "Dear Hiring Manager,"
  "cover_letter_body": string,           // body paragraphs ONLY, separated by blank lines. Do NOT include a salutation ("Dear ..."), a sign-off ("Warm regards"), the sender's name, or contact details — the template adds those. Professional, specific, UK English
