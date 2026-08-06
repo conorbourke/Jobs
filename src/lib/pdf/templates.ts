@@ -94,14 +94,12 @@ export function cvHtml(cv: CvContent): string {
 
   const experience = cv.experience
     .map((exp, i) => {
-      // Keep each role's sections tight: at most 4 responsibilities and 2 achievements.
-      const responsibilities = exp.responsibilities.slice(0, 4);
-      const achievements = (exp.achievements ?? []).slice(0, 2);
+      const achievements = exp.achievements ?? [];
       return `
       <div class="cv-job">
         <p class="cv-job-title">${esc(exp.role_title)} | ${esc(exp.company)}</p>
         <p class="cv-job-dates">${esc(exp.dates)}</p>
-        <ul class="cv-list">${responsibilities.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+        <ul class="cv-list">${exp.responsibilities.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
         ${
           achievements.length
             ? `<p class="cv-sublabel">Key Achievements:</p><ul class="cv-list">${achievements
