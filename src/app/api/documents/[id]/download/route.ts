@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { GeneratedDocument } from "@/lib/types";
 
+// Human-friendly download names — no version numbers or ids, just the type +
+// the candidate's name, e.g. "CV Conor Bourke.pdf".
+const TYPE_LABELS: Record<string, string> = {
+  cv: "CV",
+  cover_letter: "Cover Letter",
+  company_brief: "Company Brief",
+  interview_prep: "Interview Prep",
+  completed_form_pdf: "Application Form",
+  completed_form_docx: "Application Form",
+};
+
 /** Download a generated document via a short-lived signed URL. ?inline=1 previews instead. */
 export async function GET(
   request: Request,
@@ -23,9 +34,20 @@ export async function GET(
     .single<GeneratedDocument>();
   if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Name shown on the documents, used verbatim in the download filename.
+  const { data: master } = await supabase
+    .from("cv_templates")
+    .select("content")
+    .eq("is_master", true)
+    .maybeSingle<{ content: { full_name?: string } }>();
+  const fullName = master?.content?.full_name?.trim();
+  const label = TYPE_LABELS[doc.type] ?? "Document";
+  const ext = doc.storage_path.toLowerCase().endsWith(".docx") ? "docx" : "pdf";
+  const filename = `${label}${fullName ? ` ${fullName}` : ""}.${ext}`;
+
   const { data: signed, error } = await supabase.storage
     .from("generated")
-    .createSignedUrl(doc.storage_path, 300, inline ? {} : { download: true });
+    .createSignedUrl(doc.storage_path, 300, inline ? {} : { download: filename });
   if (error || !signed) {
     return NextResponse.json({ error: error?.message ?? "Sign failed" }, { status: 500 });
   }
