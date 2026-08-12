@@ -77,6 +77,7 @@ export interface Application {
   notes: string | null;
   date_added: string;
   date_submitted: string | null;
+  status_changed_at: string;
   job_description_text: string | null;
   job_url: string | null;
   attach_portfolio: boolean;
@@ -142,7 +143,7 @@ export interface GeneratedDocument {
   version: number;
   storage_path: string;
   generation_notes: string | null;
-  meta: { email_subject?: string; email_body?: string };
+  meta: { email_subject?: string; email_body?: string; application_email?: string };
   created_at: string;
 }
 

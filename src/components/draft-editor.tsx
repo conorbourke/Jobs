@@ -15,6 +15,7 @@ export interface CvCoverOutput {
   coverDocId: string;
   emailSubject: string;
   emailBody: string;
+  applicationEmail: string;
 }
 
 /**
@@ -65,6 +66,7 @@ export function DraftEditor({
         application_type: merged.application_type,
         status: merged.status,
         date_submitted: merged.date_submitted,
+        ...(merged.status_changed_at ? { status_changed_at: merged.status_changed_at } : {}),
       })
       .eq("id", app.id);
     if (error) {
@@ -79,8 +81,9 @@ export function DraftEditor({
 
   async function markSubmitted() {
     const today = new Date().toISOString().slice(0, 10);
-    setApp({ ...app, status: "applied", date_submitted: today });
-    await saveFields({ status: "applied", date_submitted: today });
+    const now = new Date().toISOString();
+    setApp({ ...app, status: "applied", date_submitted: today, status_changed_at: now });
+    await saveFields({ status: "applied", date_submitted: today, status_changed_at: now });
   }
 
   async function onJdFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -246,6 +249,7 @@ function GenerationSection({
           coverDocId: cover.id,
           emailSubject: cv.meta.email_subject ?? "",
           emailBody: cv.meta.email_body ?? "",
+          applicationEmail: cv.meta.application_email ?? "",
         });
       }
     })();
@@ -281,6 +285,7 @@ function GenerationSection({
       coverDocId: json.cover.id,
       emailSubject: json.email_subject,
       emailBody: json.email_body,
+      applicationEmail: json.application_email ?? "",
     });
     setRegenComment("");
   }
@@ -336,6 +341,14 @@ function GenerationSection({
               ⬇ Cover letter (PDF)
             </a>
           </div>
+          {output.applicationEmail && (
+            <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
+              <span className="font-semibold text-blue-900">📧 Send this application to:</span>
+              <a href={`mailto:${output.applicationEmail}`} className="font-medium text-blue-700 underline">
+                {output.applicationEmail}
+              </a>
+            </div>
+          )}
           <CopyField label="Email subject" value={output.emailSubject} />
           <CopyField label="Email body" value={output.emailBody} multiline />
 

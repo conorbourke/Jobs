@@ -42,8 +42,8 @@ export function Sidebar({
         href={href}
         className={`block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
           active
-            ? "bg-accent-50 text-accent-700"
-            : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+            ? "bg-white/15 text-white"
+            : "text-blue-100/80 hover:bg-white/10 hover:text-white"
         }`}
       >
         {label}
@@ -52,9 +52,9 @@ export function Sidebar({
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 flex w-56 flex-col border-r border-neutral-200 bg-white">
+    <aside className="fixed inset-y-0 left-0 flex w-56 flex-col border-r border-blue-950 bg-blue-900 text-blue-100">
       <div className="px-5 py-5">
-        <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
+        <Link href="/dashboard" className="text-lg font-semibold tracking-tight text-white">
           {APP_NAME}
         </Link>
       </div>
@@ -64,7 +64,7 @@ export function Sidebar({
         ))}
         {isSuperadmin && (
           <>
-            <div className="px-3 pt-5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+            <div className="px-3 pt-5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-blue-300/70">
               Superadmin
             </div>
             {ADMIN_TABS.map((t) => (
@@ -73,11 +73,11 @@ export function Sidebar({
           </>
         )}
       </nav>
-      <div className="border-t border-neutral-200 p-4">
-        <p className="truncate text-xs text-neutral-500" title={userName}>
+      <div className="border-t border-white/10 p-4">
+        <p className="truncate text-xs text-blue-200" title={userName}>
           {userName}
         </p>
-        <button onClick={signOut} className="mt-1 text-xs text-neutral-400 hover:text-neutral-700">
+        <button onClick={signOut} className="mt-1 text-xs text-blue-300 hover:text-white">
           Sign out
         </button>
       </div>
