@@ -23,6 +23,7 @@ function row(
     notes: null,
     date_added: opts.added ?? "2026-01-01",
     date_submitted: opts.submitted ?? null,
+    status_changed_at: "2026-01-01T00:00:00Z",
     job_description_text: null,
     job_url: null,
     attach_portfolio: false,

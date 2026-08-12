@@ -233,6 +233,7 @@ export interface CvCoverResult {
   cover: GeneratedDocument;
   email_subject: string;
   email_body: string;
+  application_email: string; // where to send it, if the posting states one
 }
 
 interface AiCvOutput {
@@ -244,6 +245,13 @@ interface AiCvOutput {
   cover_letter_body: string;
   email_subject: string;
   email_body: string;
+  application_email: string;
+}
+
+// AI prose loves em dashes, which reads as machine-written. Swap them for
+// commas so tailored text looks human. (En dashes in date ranges are untouched.)
+function deDash(s: string): string {
+  return s.replace(/\s*—\s*/g, ", ");
 }
 
 export async function generateCvAndCover(opts: {
@@ -305,27 +313,39 @@ export async function generateCvAndCover(opts: {
     feature: opts.regenerationComment ? "cv_cover_regeneration" : "cv_cover_generation",
     system: `You tailor CVs and cover letters to job descriptions. You NEVER invent employment history, employers, dates, education or qualifications the candidate does not have. You only rewrite the variable sections.
 
+STYLE: Write in natural, human British English. Do NOT use em dashes (—) anywhere in the text; use commas, brackets or full stops instead. Avoid AI-tell phrasing.
+
 Return JSON exactly:
 {
  "role_title": string,                  // headline title tuned to the job
- "about_me": string,                    // concise professional summary tuned to the job — 2-3 sentences, MUST fit within 4 lines (roughly 50-55 words max)
+ "about_me": string,                    // concise professional summary tuned to the job. 2-3 sentences, MUST fit within 4 lines (roughly 50-55 words max)
  "licenses": [string],                  // reordered/filtered from the candidate's real licenses & qualifications; never add new ones
- "experience_overrides": [              // SAME length & order as the candidate's experience array. NEVER include or change job titles/companies — those are fixed.
-   {"responsibilities": [string], "achievements": [string]}  // responsibilities: 2-4 tailored bullets from the candidate's REAL duties. achievements: 0-3 "Key Achievements" bullets (quantified where the master gives numbers) from the candidate's REAL results — use [] if none. Never fabricate.
+ "experience_overrides": [              // SAME length & order as the candidate's experience array. NEVER include or change job titles/companies, those are fixed.
+   {"responsibilities": [string], "achievements": [string]}  // responsibilities: 2-4 tailored bullets from the candidate's REAL duties. achievements: 0-3 "Key Achievements" bullets (quantified where the master gives numbers) from the candidate's REAL results, use [] if none. Never fabricate.
  ],
  "cover_salutation": string,            // "Dear <name>," if a specific recipient/hiring-contact name is given in the job description or notes; otherwise exactly "Dear Hiring Manager,"
- "cover_letter_body": string,           // body paragraphs ONLY, separated by blank lines. Do NOT include a salutation ("Dear ..."), a sign-off ("Warm regards"), the sender's name, or contact details — the template adds those. Professional, specific, UK English
- "email_subject": string,               // e.g. "Application for <role> — <name>"
- "email_body": string                   // short email: please find attached CV and cover letter, 3-6 sentences, UK English
+ "cover_letter_body": string,           // body paragraphs ONLY, separated by blank lines. Do NOT include a salutation ("Dear ..."), a sign-off ("Warm regards"), the sender's name, or contact details, the template adds those. Professional, specific, UK English
+ "email_subject": string,               // e.g. "Application for <role>, <name>"
+ "email_body": string,                  // short email: please find attached CV and cover letter, 3-6 sentences, UK English
+ "application_email": string            // the email address the application should be SENT TO if one appears in the job description, notes or supporting documents; otherwise ""
 }
 
 ${portfolioInstruction}`,
     user: `JOB CONTEXT:\n${contextPrompt(ctx)}\n\nCANDIDATE'S SELECTED CV TEMPLATE ("${template.label}"):\n${JSON.stringify(template.content)}\n\nMASTER CV (fixed facts — companies, dates, education are immutable):\n${JSON.stringify(master.content)}\n\n${opts.userNotes ? `SPECIFIC INFORMATION FROM THE CANDIDATE TO USE: ${opts.userNotes}` : ""}${previousContext}`,
   });
 
+  // Strip em dashes from all AI prose so nothing reads as machine-written.
+  out.about_me = deDash(out.about_me);
+  out.cover_letter_body = deDash(out.cover_letter_body);
+  out.licenses = out.licenses.map(deDash);
+  out.experience_overrides = out.experience_overrides.map((e) => ({
+    responsibilities: e.responsibilities.map(deDash),
+    achievements: (e.achievements ?? []).map(deDash),
+  }));
+
   // Structurally enforce fixed slots: merge AI output over the master. Job
-  // titles and companies stay exactly as the master — only the responsibilities
-  // are re-prioritised — so the AI can't append invented role suffixes.
+  // titles and companies stay exactly as the master, only the responsibilities
+  // are re-prioritised, so the AI can't append invented role suffixes.
   const cvContent = mergeWithMaster(master.content, {
     role_title: out.role_title,
     about_me: out.about_me,
@@ -376,9 +396,11 @@ ${portfolioInstruction}`,
     { margin: DOC_MARGIN }
   );
 
+  const applicationEmail = (out.application_email ?? "").trim();
   const sharedMeta = {
     email_subject: out.email_subject,
     email_body: out.email_body,
+    application_email: applicationEmail,
   };
   const cvDoc = await storeDocument({
     supabase,
@@ -406,5 +428,6 @@ ${portfolioInstruction}`,
     cover: coverDoc,
     email_subject: out.email_subject,
     email_body: out.email_body,
+    application_email: applicationEmail,
   };
 }

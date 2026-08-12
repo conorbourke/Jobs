@@ -37,7 +37,10 @@ export function TrackerClient({
 
   async function updateStatus(id: string, status: ApplicationStatus) {
     const supabase = createClient();
-    const patch: Record<string, unknown> = { status };
+    const patch: Record<string, unknown> = {
+      status,
+      status_changed_at: new Date().toISOString(),
+    };
     if (status === "applied") {
       patch.date_submitted = new Date().toISOString().slice(0, 10);
     }
@@ -54,7 +57,7 @@ export function TrackerClient({
         }`}
       >
         <td className="whitespace-nowrap px-3 py-2.5 text-neutral-500">
-          {formatDate(row.date_added)}
+          {formatDate(row.date_submitted)}
         </td>
         <td className="px-3 py-2.5 font-medium text-neutral-900">{row.job_title || "Untitled"}</td>
         <td className="px-3 py-2.5">{row.company_name ?? "—"}</td>
@@ -71,6 +74,11 @@ export function TrackerClient({
               </option>
             ))}
           </select>
+          {row.status_changed_at && (
+            <div className="mt-1 text-[10px] text-neutral-400">
+              {formatDate(row.status_changed_at)}
+            </div>
+          )}
         </td>
         <td className="max-w-40 truncate px-3 py-2.5 text-neutral-500" title={row.notes ?? ""}>
           {row.notes ?? ""}
@@ -116,7 +124,7 @@ export function TrackerClient({
       </div>
 
       {/* ---------- Not applied: tailor CV/cover, then mark applied ---------- */}
-      <section className="rounded-2xl border border-sky-200 bg-sky-100/60 p-5">
+      <section className="rounded-2xl border border-sky-300 bg-sky-200/50 p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-sky-900">Not applied</h2>
@@ -176,7 +184,7 @@ export function TrackerClient({
       </section>
 
       {/* ---------- Applied: the tracker ---------- */}
-      <section className="rounded-2xl border border-blue-200 bg-blue-50/60 p-5 shadow-sm">
+      <section className="rounded-2xl border border-blue-300 bg-blue-100/60 p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-blue-900">Applied</h2>
@@ -195,7 +203,7 @@ export function TrackerClient({
               <table className="w-full text-left text-sm">
                 <thead className="text-xs uppercase tracking-wide text-neutral-400">
                   <tr>
-                    <th className="px-3 py-2.5 font-medium">Added</th>
+                    <th className="px-3 py-2.5 font-medium">Applied</th>
                     <th className="px-3 py-2.5 font-medium">Job title</th>
                     <th className="px-3 py-2.5 font-medium">Company</th>
                     <th className="px-3 py-2.5 font-medium">Salary</th>
