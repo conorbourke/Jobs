@@ -48,6 +48,14 @@ export function TrackerClient({
     router.refresh();
   }
 
+  async function deleteDraft(id: string) {
+    if (!window.confirm("Delete this draft? This can't be undone.")) return;
+    const supabase = createClient();
+    await supabase.from("applications").delete().eq("id", id);
+    if (openDraftId === id) setOpenDraftId(null);
+    router.refresh();
+  }
+
   function Row({ row }: { row: TrackerRow }) {
     return (
       <tr
@@ -157,7 +165,8 @@ export function TrackerClient({
                       {d.job_title || "Untitled job"}
                     </span>
                     <span className="block truncate text-xs text-neutral-400">
-                      {d.company_name ?? "No company"} · added {formatDate(d.date_added)}
+                      {d.company_name ?? "No company"} ·{" "}
+                      {d.due_date ? `due ${formatDate(d.due_date)}` : "no deadline"}
                     </span>
                   </span>
                   <span className="shrink-0 text-xs font-semibold text-sky-600">
@@ -174,6 +183,7 @@ export function TrackerClient({
                       showAttachments
                       onChanged={() => router.refresh()}
                       onClose={() => setOpenDraftId(null)}
+                      onDelete={() => deleteDraft(d.id)}
                     />
                   </div>
                 )}

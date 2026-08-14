@@ -45,6 +45,14 @@ export function SuggestedClient({
     }
   }
 
+  async function deleteDraft(id: string) {
+    if (!window.confirm("Delete this draft? This can't be undone.")) return;
+    const supabase = createClient();
+    await supabase.from("applications").delete().eq("id", id);
+    if (selectedId === id) setSelectedId(null);
+    router.refresh();
+  }
+
   return (
     <div className="max-w-4xl space-y-6">
       <div>
@@ -76,6 +84,7 @@ export function SuggestedClient({
           cvTemplates={cvTemplates}
           onChanged={() => router.refresh()}
           onClose={() => setSelectedId(null)}
+          onDelete={() => deleteDraft(selected.id)}
           showGeneration={false}
           showSubmit={false}
           showAttachments

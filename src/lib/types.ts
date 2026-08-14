@@ -78,6 +78,7 @@ export interface Application {
   date_added: string;
   date_submitted: string | null;
   status_changed_at: string;
+  due_date: string | null;
   job_description_text: string | null;
   job_url: string | null;
   attach_portfolio: boolean;

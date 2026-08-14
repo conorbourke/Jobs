@@ -20,6 +20,8 @@ export default async function SuggestedPage() {
         .select("*")
         .eq("status", "draft")
         .neq("source", "application_form")
+        // Unknown deadline first, then soonest deadline; newest as a tiebreak.
+        .order("due_date", { ascending: true, nullsFirst: true })
         .order("created_at", { ascending: false })
         .returns<Application[]>(),
       supabase

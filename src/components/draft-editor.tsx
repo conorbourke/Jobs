@@ -29,6 +29,7 @@ export function DraftEditor({
   cvTemplates,
   onChanged,
   onClose,
+  onDelete,
   children,
   showGeneration = true,
   showSubmit = true,
@@ -39,6 +40,7 @@ export function DraftEditor({
   cvTemplates: CvTemplate[];
   onChanged: () => void;
   onClose?: () => void;
+  onDelete?: () => void; // when set, shows a "Delete" button in the header
   children?: React.ReactNode; // extra sections (form completion on Forms tab)
   showGeneration?: boolean; // CV/cover generation (hidden on capture-only New Jobs)
   showSubmit?: boolean; // "Mark submitted" (mark-as-applied lives in the Tracker)
@@ -66,6 +68,7 @@ export function DraftEditor({
         application_type: merged.application_type,
         status: merged.status,
         date_submitted: merged.date_submitted,
+        due_date: merged.due_date,
         ...(merged.status_changed_at ? { status_changed_at: merged.status_changed_at } : {}),
       })
       .eq("id", app.id);
@@ -118,6 +121,14 @@ export function DraftEditor({
             ) : (
               <span className="badge bg-green-50 text-green-700">Submitted</span>
             ))}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="text-xs font-medium text-neutral-400 hover:text-red-600"
+            >
+              Delete
+            </button>
+          )}
           {onClose && (
             <button onClick={onClose} className="btn-ghost px-2 py-1 text-lg leading-none">
               ×
@@ -153,6 +164,11 @@ export function DraftEditor({
           <label className="label">Location</label>
           <input className="input" value={app.location ?? ""}
             onChange={(e) => setApp({ ...app, location: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Application deadline</label>
+          <input type="date" className="input" value={app.due_date ?? ""}
+            onChange={(e) => setApp({ ...app, due_date: e.target.value || null })} />
         </div>
         <div>
           <label className="label">Job URL</label>

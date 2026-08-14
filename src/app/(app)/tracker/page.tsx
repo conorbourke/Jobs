@@ -51,9 +51,15 @@ export default async function TrackerPage() {
     next_interview_at: nextInterview.get(a.id) ?? null,
   }));
 
+  // Unknown deadline first, then soonest deadline; newest added as a tiebreak.
   const notApplied = rows
     .filter((r) => r.status === "draft")
-    .sort((a, b) => b.date_added.localeCompare(a.date_added));
+    .sort((a, b) => {
+      if (!a.due_date && !b.due_date) return b.date_added.localeCompare(a.date_added);
+      if (!a.due_date) return -1;
+      if (!b.due_date) return 1;
+      return a.due_date.localeCompare(b.due_date);
+    });
   const applied = sortTrackerRows(
     rows.filter((r) => r.status !== "rejected" && r.status !== "draft")
   );
