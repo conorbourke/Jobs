@@ -145,8 +145,21 @@ function parseJson<T>(raw: string): T {
   const cleaned = raw
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
-    .replace(/```\s*$/, "");
-  return JSON.parse(cleaned) as T;
+    .replace(/```\s*$/, "")
+    .trim();
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    // The model wrapped the JSON in prose (or added a trailing note). Extract
+    // the outermost { … } / [ … ] and parse that.
+    const start = cleaned.search(/[{[]/);
+    const close = cleaned[start] === "[" ? "]" : "}";
+    const end = cleaned.lastIndexOf(close);
+    if (start !== -1 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1)) as T;
+    }
+    throw new Error("AI did not return valid JSON");
+  }
 }
 
 // Anthropic server-side web tools. Cast bypasses SDK-version type drift; the
