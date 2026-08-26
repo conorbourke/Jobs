@@ -1,4 +1,16 @@
-import type { ApplicationStatus } from "./types";
+import type { ApplicationStatus, Suitability } from "./types";
+
+export const SUITABILITY_LABELS: Record<Suitability, string> = {
+  low: "Low match",
+  medium: "Medium match",
+  high: "High match",
+};
+
+export const SUITABILITY_BADGE_CLASSES: Record<Suitability, string> = {
+  low: "bg-neutral-100 text-neutral-500",
+  medium: "bg-amber-100 text-amber-700",
+  high: "bg-green-100 text-green-700",
+};
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   draft: "Draft",

@@ -6,6 +6,7 @@ import {
   scrapeJobUrl,
   type ScrapedJob,
 } from "@/lib/scrape";
+import { buildCandidateProfile, scoreJobs } from "@/lib/suitability";
 
 /**
  * Create a draft application from either:
@@ -64,6 +65,33 @@ export async function POST(request: Request) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // Score suitability (low/medium/high) best-effort so the new draft shows a
+  // match badge immediately. Never let this block draft creation.
+  if (application && (application.job_title || application.job_description_text)) {
+    try {
+      const profile = await buildCandidateProfile(supabase, user.id);
+      const [s] = await scoreJobs(supabase, user.id, profile, [
+        {
+          ref: application.id,
+          title: application.job_title || "Untitled role",
+          company: scraped.company_name ?? null,
+          location: application.location,
+          description: application.job_description_text,
+        },
+      ]);
+      if (s) {
+        await supabase
+          .from("applications")
+          .update({ suitability: s.suitability, suitability_reason: s.reason })
+          .eq("id", application.id);
+        application.suitability = s.suitability;
+        application.suitability_reason = s.reason;
+      }
+    } catch {
+      // leave unscored
+    }
+  }
 
   return NextResponse.json({
     ok: true,

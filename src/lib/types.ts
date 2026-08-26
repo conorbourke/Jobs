@@ -10,6 +10,7 @@ export type ApplicationStatus =
   | "next_scheduled"
   | "rejected";
 export type ApplicationType = "email" | "web_form";
+export type Suitability = "low" | "medium" | "high";
 export type ApplicationSource = "suggested" | "application_form" | "manual";
 export type EmailDirection = "from_me" | "from_company";
 export type CompanyTier = "primary" | "secondary";
@@ -79,6 +80,8 @@ export interface Application {
   date_submitted: string | null;
   status_changed_at: string;
   due_date: string | null;
+  suitability: Suitability | null;
+  suitability_reason: string | null;
   job_description_text: string | null;
   job_url: string | null;
   attach_portfolio: boolean;
@@ -94,6 +97,27 @@ export interface ApplicationAttachment {
   storage_path: string;
   filename: string;
   extracted_text: string | null;
+  created_at: string;
+}
+
+export type RecommendedJobStatus = "new" | "dismissed" | "added";
+
+export interface RecommendedJob {
+  id: string;
+  user_id: string;
+  source: string; // "adzuna" | "reed" | ...
+  external_id: string; // provider's id, for dedup
+  title: string;
+  company_name: string | null;
+  location: string | null;
+  salary_text: string | null;
+  url: string | null;
+  description: string | null;
+  suitability: Suitability | null;
+  suitability_reason: string | null;
+  score: number | null; // 0..100 fit score, for ordering
+  posted_at: string | null;
+  status: RecommendedJobStatus;
   created_at: string;
 }
 

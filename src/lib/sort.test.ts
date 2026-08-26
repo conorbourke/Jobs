@@ -25,6 +25,8 @@ function row(
     date_submitted: opts.submitted ?? null,
     status_changed_at: "2026-01-01T00:00:00Z",
     due_date: null,
+    suitability: null,
+    suitability_reason: null,
     job_description_text: null,
     job_url: null,
     attach_portfolio: false,

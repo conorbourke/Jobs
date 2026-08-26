@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DraftEditor } from "@/components/draft-editor";
 import { CompanyList } from "@/components/company-list";
+import { SuitabilityBadge } from "@/components/suitability-badge";
 import { formatDate } from "@/lib/labels";
 import type { Application, Company, CvTemplate } from "@/lib/types";
 
@@ -22,6 +23,27 @@ export function SuggestedClient({
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(drafts[0]?.id ?? null);
   const selected = drafts.find((d) => d.id === selectedId) ?? null;
+
+  // One-shot: score any drafts that don't yet have a suitability match, then
+  // refresh so the badges appear. Guarded so it fires once per unscored set.
+  const scoringRef = useRef(false);
+  useEffect(() => {
+    const unscored = drafts.filter(
+      (d) => !d.suitability && (d.job_title || d.job_description_text)
+    );
+    if (unscored.length === 0 || scoringRef.current) return;
+    scoringRef.current = true;
+    fetch("/api/suitability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationIds: unscored.map((d) => d.id) }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.scored > 0) router.refresh();
+      })
+      .catch(() => {});
+  }, [drafts, router]);
 
   async function createBlankDraft(companyId?: string) {
     const supabase = createClient();
@@ -110,8 +132,11 @@ export function SuggestedClient({
                 }`}
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-medium">
-                    {d.job_title || "Untitled draft"}
+                  <span className="flex items-center gap-2">
+                    <span className="truncate font-medium">
+                      {d.job_title || "Untitled draft"}
+                    </span>
+                    <SuitabilityBadge value={d.suitability} reason={d.suitability_reason} />
                   </span>
                   <span className="block truncate text-xs text-neutral-400">
                     {d.job_url || "no URL"}
