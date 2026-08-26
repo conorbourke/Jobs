@@ -6,6 +6,7 @@ import {
   type RawJob,
   type SourceQuery,
 } from "./jobsources";
+import { fetchScrapeSources } from "./scrapesources";
 import {
   buildCandidateProfile,
   scoreJobs,
@@ -106,7 +107,21 @@ export async function runRecommendations(
   }
 
   const query = await deriveQuery(supabase, userId);
-  const raw = await fetchAllSources(query);
+
+  // API sources (Adzuna/Reed) and HTML-scrape sources (LinkedIn/Indeed/jobs.ie)
+  // in parallel, then dedupe across everything.
+  const [apiJobs, scrapeJobs] = await Promise.all([
+    fetchAllSources(query),
+    fetchScrapeSources(supabase, userId, query),
+  ]);
+  const seenSource = new Set<string>();
+  const raw: RawJob[] = [];
+  for (const j of [...apiJobs, ...scrapeJobs]) {
+    const key = `${j.source}:${j.external_id}`;
+    if (seenSource.has(key)) continue;
+    seenSource.add(key);
+    raw.push(j);
+  }
   if (raw.length === 0) {
     return { configured: true, fetched: 0, scored: 0, inserted: 0 };
   }
