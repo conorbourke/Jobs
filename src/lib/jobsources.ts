@@ -1,9 +1,8 @@
 /**
- * Job-board discovery. Pulls fresh postings from official job-board APIs that
- * permit programmatic access (Adzuna, Reed) — deliberately NOT scraping
- * LinkedIn/Indeed, which prohibit it and block hard. Each source is optional:
- * if its API keys aren't configured it's silently skipped, so the feature
- * degrades to whatever sources are available.
+ * Job-board discovery via official APIs that permit programmatic access
+ * (Adzuna, Reed). The LinkedIn/Indeed/jobs.ie HTML-scrape sources live in
+ * scrapesources.ts. Each source is optional: if its API keys aren't configured
+ * it's silently skipped, so the feature degrades to whatever's available.
  *
  * Keys (Cloudflare secrets / env — NOT committed):
  *   ADZUNA_APP_ID, ADZUNA_APP_KEY   (free: https://developer.adzuna.com)
@@ -159,11 +158,13 @@ export async function fetchReedJobs(q: SourceQuery): Promise<RawJob[]> {
   return out;
 }
 
-/** True when at least one source has credentials configured. */
+/** True when at least one source is available (API keys, or Browser Rendering
+ * for the LinkedIn/Indeed/jobs.ie scrape sources). */
 export function anySourceConfigured(): boolean {
   return Boolean(
     (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) ||
-      process.env.REED_API_KEY
+      process.env.REED_API_KEY ||
+      process.env.CLOUDFLARE_API_TOKEN
   );
 }
 

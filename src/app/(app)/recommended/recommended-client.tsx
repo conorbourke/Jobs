@@ -48,8 +48,8 @@ export function RecommendedClient({
     if (json.inserted === 0) {
       setNotice(
         json.fetched === 0
-          ? "No new postings came back from the job boards just now — try again later."
-          : "Nothing new to add — everything found was already seen or already tracked."
+          ? "No postings came back from the job boards just now (LinkedIn/Indeed often block automated access) — try again later."
+          : "Nothing new to add — everything found was already seen, already tracked, or not a strong enough match."
       );
     } else {
       setNotice(`Added ${json.inserted} new recommendation${json.inserted === 1 ? "" : "s"}.`);
@@ -63,9 +63,9 @@ export function RecommendedClient({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Recommended</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Fresh postings pulled daily from job boards, matched against your CV
-            and the roles you&apos;ve applied for. Add the good ones to New Jobs,
-            or dismiss the rest.
+            Fresh postings pulled daily from LinkedIn, Indeed, jobs.ie, Adzuna
+            and Reed, matched against your CV and the roles you&apos;ve applied
+            for. Add the good ones to New Jobs, or dismiss the rest.
           </p>
         </div>
         <button

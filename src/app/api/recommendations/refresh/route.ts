@@ -7,7 +7,7 @@ import { runRecommendations } from "@/lib/recommend";
  * ("Refresh now" in the Recommended tab). The same logic runs daily via
  * /api/cron/recommendations for every user.
  */
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST() {
   const supabase = await createClient();
