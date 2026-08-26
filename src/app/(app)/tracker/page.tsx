@@ -67,6 +67,15 @@ export default async function TrackerPage() {
     .filter((r) => r.status === "rejected")
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
+  // For each company, the roles already applied to (any non-draft application).
+  // Used to flag a not-applied draft when you've applied to the same company
+  // before on a different role.
+  const priorRolesByCompany: Record<string, string[]> = {};
+  for (const r of rows) {
+    if (r.status === "draft" || !r.company_id) continue;
+    (priorRolesByCompany[r.company_id] ??= []).push(r.job_title || "Untitled role");
+  }
+
   return (
     <TrackerClient
       notApplied={notApplied}
@@ -74,6 +83,7 @@ export default async function TrackerPage() {
       rejected={rejected}
       companies={companies ?? []}
       cvTemplates={templates ?? []}
+      priorRolesByCompany={priorRolesByCompany}
     />
   );
 }
