@@ -17,12 +17,14 @@ export function TrackerClient({
   rejected,
   companies,
   cvTemplates,
+  priorRolesByCompany,
 }: {
   notApplied: TrackerRow[];
   applied: TrackerRow[];
   rejected: TrackerRow[];
   companies: Company[];
   cvTemplates: CvTemplate[];
+  priorRolesByCompany: Record<string, string[]>;
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -151,7 +153,11 @@ export function TrackerClient({
           </p>
         ) : (
           <div className="space-y-3">
-            {notApplied.map((d) => (
+            {notApplied.map((d) => {
+              const priorRoles = d.company_id
+                ? priorRolesByCompany[d.company_id] ?? []
+                : [];
+              return (
               <div
                 key={d.id}
                 className="overflow-hidden rounded-xl border border-sky-100 bg-white"
@@ -161,8 +167,18 @@ export function TrackerClient({
                   className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-sky-50/70"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-neutral-900">
-                      {d.job_title || "Untitled job"}
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-neutral-900">
+                        {d.job_title || "Untitled job"}
+                      </span>
+                      {priorRoles.length > 0 && (
+                        <span
+                          className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
+                          title={`You've already applied to ${d.company_name ?? "this company"} for: ${priorRoles.join(", ")}`}
+                        >
+                          Applied here before
+                        </span>
+                      )}
                     </span>
                     <span className="block truncate text-xs text-neutral-400">
                       {d.company_name ?? "No company"} ·{" "}
@@ -188,7 +204,8 @@ export function TrackerClient({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
