@@ -1,0 +1,33 @@
+name: Daily job recommendations
+
+# Pulls fresh job-board postings and scores them for every user once a day.
+# Hits the deployed /api/cron/recommendations endpoint with a shared secret.
+#
+# Requires two GitHub repo secrets:
+#   CRON_SECRET  – same value as the Worker's CRON_SECRET secret
+#   APP_BASE_URL – e.g. https://jobs.conorbourke.workers.dev  (optional; a
+#                  default is used if unset)
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call recommendations cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+        run: |
+          BASE="${APP_BASE_URL:-https://jobs.conorbourke.workers.dev}"
+          echo "Triggering daily recommendations at $BASE"
+          code=$(curl -s -o /tmp/out.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE/api/cron/recommendations")
+          echo "HTTP $code"
+          cat /tmp/out.json
+          echo
+          test "$code" = "200"
