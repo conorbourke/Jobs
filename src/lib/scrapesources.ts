@@ -144,6 +144,46 @@ async function pool<T, R>(
   return results;
 }
 
+export interface ScrapeDiag {
+  source: string;
+  url: string;
+  chars: number; // readable text retrieved (0 = blocked/empty)
+  items: number; // postings the model extracted
+  sample: string; // first slice of retrieved text, to eyeball what came back
+}
+
+/**
+ * Diagnostic: fetch one search page per source and report what came back
+ * (bytes retrieved + postings extracted + a text sample). Lets us tell a
+ * blocked/empty fetch apart from an extraction miss or a wrong URL.
+ */
+export async function debugScrapeSources(
+  supabase: SupabaseClient,
+  userId: string,
+  q: SourceQuery
+): Promise<ScrapeDiag[]> {
+  const kw = q.keywords[0] ?? "operations manager";
+  const loc = q.locations[0] ?? "Dublin";
+  const targets = [
+    { source: "linkedin", url: linkedinUrl(kw, loc) },
+    { source: "indeed", url: indeedUrl(kw, loc) },
+    { source: "jobs.ie", url: jobsIeUrl(kw, loc) },
+  ];
+  const out: ScrapeDiag[] = [];
+  for (const t of targets) {
+    const text = await fetchReadableText(t.url);
+    const jobs = await extractList(supabase, userId, t.source, t.url, text);
+    out.push({
+      source: t.source,
+      url: t.url,
+      chars: text.length,
+      items: jobs.length,
+      sample: text.slice(0, 300).replace(/\s+/g, " ").trim(),
+    });
+  }
+  return out;
+}
+
 /**
  * Fetch + extract jobs from the HTML-scrape sources. Kept deliberately small
  * (top keywords/locations only) to stay within Browser Rendering rate limits
