@@ -26,6 +26,7 @@ export interface RecommendRunResult {
   fetched: number; // raw postings returned by sources
   scored: number; // survived dedup and were scored
   inserted: number; // stored as new recommendations
+  bySource: Record<string, number>; // raw postings per source (diagnostic)
 }
 
 const DEFAULT_LOCATIONS = ["Dublin", "Belfast", "London"];
@@ -103,7 +104,7 @@ export async function runRecommendations(
   userId: string
 ): Promise<RecommendRunResult> {
   if (!anySourceConfigured()) {
-    return { configured: false, fetched: 0, scored: 0, inserted: 0 };
+    return { configured: false, fetched: 0, scored: 0, inserted: 0, bySource: {} };
   }
 
   const query = await deriveQuery(supabase, userId);
@@ -116,14 +117,16 @@ export async function runRecommendations(
   ]);
   const seenSource = new Set<string>();
   const raw: RawJob[] = [];
+  const bySource: Record<string, number> = {};
   for (const j of [...apiJobs, ...scrapeJobs]) {
     const key = `${j.source}:${j.external_id}`;
     if (seenSource.has(key)) continue;
     seenSource.add(key);
     raw.push(j);
+    bySource[j.source] = (bySource[j.source] ?? 0) + 1;
   }
   if (raw.length === 0) {
-    return { configured: true, fetched: 0, scored: 0, inserted: 0 };
+    return { configured: true, fetched: 0, scored: 0, inserted: 0, bySource };
   }
 
   // Dedup against what we've already recommended and what's already tracked.
@@ -164,7 +167,7 @@ export async function runRecommendations(
     fresh.push(j);
   }
   if (fresh.length === 0) {
-    return { configured: true, fetched: raw.length, scored: 0, inserted: 0 };
+    return { configured: true, fetched: raw.length, scored: 0, inserted: 0, bySource };
   }
 
   // Score against the candidate profile, in chunks.
@@ -226,5 +229,6 @@ export async function runRecommendations(
     fetched: raw.length,
     scored: scoreByRef.size,
     inserted,
+    bySource,
   };
 }

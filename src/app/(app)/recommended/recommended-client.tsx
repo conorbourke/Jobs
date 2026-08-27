@@ -45,14 +45,29 @@ export function RecommendedClient({
       );
       return;
     }
+    const bySource = json.bySource as Record<string, number> | undefined;
+    const sources = bySource && Object.keys(bySource).length
+      ? " [" + Object.entries(bySource).map(([s, n]) => `${s}: ${n}`).join(", ") + "]"
+      : "";
+    const counts = `Found ${json.fetched ?? 0} · scored ${json.scored ?? 0} · added ${json.inserted ?? 0}.${sources}`;
     if (json.inserted === 0) {
-      setNotice(
-        json.fetched === 0
-          ? "No postings came back from the job boards just now (LinkedIn/Indeed often block automated access) — try again later."
-          : "Nothing new to add — everything found was already seen, already tracked, or not a strong enough match."
-      );
+      if (json.fetched === 0) {
+        setNotice(
+          `${counts} No postings came back from the job boards just now — LinkedIn/Indeed often block automated access from servers. Try again, or add the Adzuna/Reed API keys for a reliable source.`
+        );
+      } else if ((json.scored ?? 0) === 0) {
+        setNotice(
+          `${counts} Postings came back but couldn't be scored just now (the AI scorer hiccuped or is rate-limited) — try again in a moment.`
+        );
+      } else {
+        setNotice(
+          `${counts} Everything found was already seen, already tracked, or scored a low match.`
+        );
+      }
     } else {
-      setNotice(`Added ${json.inserted} new recommendation${json.inserted === 1 ? "" : "s"}.`);
+      setNotice(
+        `${counts} Added ${json.inserted} new recommendation${json.inserted === 1 ? "" : "s"}.`
+      );
     }
     router.refresh();
   }
