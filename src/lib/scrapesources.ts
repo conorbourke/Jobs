@@ -71,7 +71,7 @@ async function extractList(
       userId,
       feature: "job_list_scrape",
       system: EXTRACT_SYSTEM,
-      user: `Base URL: ${baseUrl}\n\nPage content:\n${pageText.slice(0, 22000)}`,
+      user: `Base URL: ${baseUrl}\n\nPage content:\n${pageText.slice(0, 24000)}`,
       maxOutputTokens: 2500,
     });
   } catch {
@@ -206,13 +206,16 @@ export async function fetchScrapeSources(
   const keywords = q.keywords.slice(0, 2);
   const locations = (q.locations.length ? q.locations : ["Ireland"]).slice(0, 2);
 
+  // Only the scrape sources that actually get through from the Worker's IP are
+  // run live: LinkedIn's guest endpoint works, jobs.ie returns content. Indeed
+  // (Cloudflare "security check") and NIJobfinder (Madgex 403) reliably block
+  // server IPs — they stay in the debug endpoint but are skipped here so we
+  // don't burn Browser Rendering calls and time on them.
   const targets: { source: string; url: string }[] = [];
   for (const kw of keywords) {
     for (const loc of locations) {
       targets.push({ source: "linkedin", url: linkedinUrl(kw, loc) });
-      targets.push({ source: "indeed", url: indeedUrl(kw, loc) });
       targets.push({ source: "jobs.ie", url: jobsIeUrl(kw, loc) });
-      targets.push({ source: "nijobfinder", url: niJobFinderUrl(kw, loc) });
     }
   }
 
