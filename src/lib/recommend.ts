@@ -7,6 +7,7 @@ import {
   type SourceQuery,
 } from "./jobsources";
 import { fetchScrapeSources } from "./scrapesources";
+import { fetchFreeApiSources } from "./apisources";
 import {
   buildCandidateProfile,
   scoreJobs,
@@ -32,7 +33,8 @@ export interface RecommendRunResult {
 const DEFAULT_LOCATIONS = ["Dublin", "Belfast", "London"];
 const MAX_KEYWORDS = 5;
 const SCORE_CHUNK = 12;
-const MAX_INSERT = 40;
+const MAX_SCORE = 60; // cap postings scored per run (cost + time budget)
+const MAX_INSERT = 50;
 
 function norm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -109,16 +111,19 @@ export async function runRecommendations(
 
   const query = await deriveQuery(supabase, userId);
 
-  // API sources (Adzuna/Reed) and HTML-scrape sources (LinkedIn/Indeed/jobs.ie)
-  // in parallel, then dedupe across everything.
-  const [apiJobs, scrapeJobs] = await Promise.all([
+  // Three source groups in parallel, then dedupe across everything:
+  //  - keyed APIs (Adzuna/Reed)         — reliable, need signup
+  //  - keyless APIs (Muse/Remotive/…)   — reliable, no signup
+  //  - HTML scrape (LinkedIn/Indeed/…)  — best-effort, often blocked
+  const [apiJobs, freeJobs, scrapeJobs] = await Promise.all([
     fetchAllSources(query),
+    fetchFreeApiSources(query),
     fetchScrapeSources(supabase, userId, query),
   ]);
   const seenSource = new Set<string>();
   const raw: RawJob[] = [];
   const bySource: Record<string, number> = {};
-  for (const j of [...apiJobs, ...scrapeJobs]) {
+  for (const j of [...apiJobs, ...freeJobs, ...scrapeJobs]) {
     const key = `${j.source}:${j.external_id}`;
     if (seenSource.has(key)) continue;
     seenSource.add(key);
@@ -170,11 +175,14 @@ export async function runRecommendations(
     return { configured: true, fetched: raw.length, scored: 0, inserted: 0, bySource };
   }
 
+  // Cap how many we score per run (cost + time budget), newest-ish first.
+  const toRank = fresh.slice(0, MAX_SCORE);
+
   // Score against the candidate profile, in chunks.
   const profile = await buildCandidateProfile(supabase, userId);
   const scoreByRef = new Map<string, { suitability: string; score: number; reason: string }>();
-  for (let i = 0; i < fresh.length; i += SCORE_CHUNK) {
-    const chunk = fresh.slice(i, i + SCORE_CHUNK);
+  for (let i = 0; i < toRank.length; i += SCORE_CHUNK) {
+    const chunk = toRank.slice(i, i + SCORE_CHUNK);
     const toScore: JobToScore[] = chunk.map((j) => ({
       ref: `${j.source}:${j.external_id}`,
       title: j.title,
@@ -186,14 +194,15 @@ export async function runRecommendations(
     for (const s of scores) scoreByRef.set(s.ref, s);
   }
 
-  // Keep medium/high matches, best first, capped.
-  const rows = fresh
-    .map((j) => {
-      const s = scoreByRef.get(`${j.source}:${j.external_id}`);
-      return { job: j, s };
+  // Relaxed: keep everything found, best match first. Low matches sink to the
+  // bottom; jobs the scorer couldn't rate are kept as "unrated" (null) rather
+  // than silently dropped — the tab should never come up empty when jobs exist.
+  const rows = toRank
+    .map((job) => {
+      const s = scoreByRef.get(`${job.source}:${job.external_id}`);
+      return { job, s };
     })
-    .filter((r) => r.s && r.s.suitability !== "low")
-    .sort((a, b) => (b.s!.score ?? 0) - (a.s!.score ?? 0))
+    .sort((a, b) => (b.s?.score ?? 45) - (a.s?.score ?? 45))
     .slice(0, MAX_INSERT)
     .map(({ job, s }) => ({
       user_id: userId,
@@ -205,9 +214,9 @@ export async function runRecommendations(
       salary_text: job.salary_text,
       url: job.url,
       description: job.description,
-      suitability: s!.suitability,
-      suitability_reason: s!.reason,
-      score: s!.score,
+      suitability: s?.suitability ?? null,
+      suitability_reason: s?.reason ?? null,
+      score: s?.score ?? null,
       posted_at: job.posted_at,
       status: "new" as const,
     }));

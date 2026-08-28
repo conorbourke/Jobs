@@ -126,6 +126,12 @@ function jobsIeUrl(kw: string, loc: string): string {
   return `https://www.jobs.ie/jobs?${p}`;
 }
 
+function niJobFinderUrl(kw: string, loc: string): string {
+  // NIJobfinder — Northern Ireland board. Keyword + location search.
+  const p = new URLSearchParams({ keywords: kw, location: loc });
+  return `https://www.nijobfinder.co.uk/jobs/search?${p}`;
+}
+
 /** Run async workers over items with limited concurrency. */
 async function pool<T, R>(
   items: T[],
@@ -168,6 +174,7 @@ export async function debugScrapeSources(
     { source: "linkedin", url: linkedinUrl(kw, loc) },
     { source: "indeed", url: indeedUrl(kw, loc) },
     { source: "jobs.ie", url: jobsIeUrl(kw, loc) },
+    { source: "nijobfinder", url: niJobFinderUrl(kw, loc) },
   ];
   const out: ScrapeDiag[] = [];
   for (const t of targets) {
@@ -205,6 +212,7 @@ export async function fetchScrapeSources(
       targets.push({ source: "linkedin", url: linkedinUrl(kw, loc) });
       targets.push({ source: "indeed", url: indeedUrl(kw, loc) });
       targets.push({ source: "jobs.ie", url: jobsIeUrl(kw, loc) });
+      targets.push({ source: "nijobfinder", url: niJobFinderUrl(kw, loc) });
     }
   }
 
