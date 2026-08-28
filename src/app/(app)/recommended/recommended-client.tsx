@@ -78,9 +78,10 @@ export function RecommendedClient({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Recommended</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Fresh postings pulled daily from LinkedIn, Indeed, jobs.ie, Adzuna
-            and Reed, matched against your CV and the roles you&apos;ve applied
-            for. Add the good ones to New Jobs, or dismiss the rest.
+            Fresh postings pulled daily from The Muse, Remotive, Arbeitnow and
+            (where reachable) LinkedIn, Indeed, jobs.ie and NIJobfinder, matched
+            against your CV and the roles you&apos;ve applied for. Add the good
+            ones to New Jobs, or dismiss the rest.
           </p>
         </div>
         <button

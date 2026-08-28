@@ -158,14 +158,11 @@ export async function fetchReedJobs(q: SourceQuery): Promise<RawJob[]> {
   return out;
 }
 
-/** True when at least one source is available (API keys, or Browser Rendering
- * for the LinkedIn/Indeed/jobs.ie scrape sources). */
+/** Always true: the keyless API sources (The Muse, Remotive, Arbeitnow) need no
+ * configuration, so recommendations can always run. Kept as a function so the
+ * cron/UI can branch on it if the source mix ever changes. */
 export function anySourceConfigured(): boolean {
-  return Boolean(
-    (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) ||
-      process.env.REED_API_KEY ||
-      process.env.CLOUDFLARE_API_TOKEN
-  );
+  return true;
 }
 
 /** Fetch from every configured source and dedupe within this batch. */
