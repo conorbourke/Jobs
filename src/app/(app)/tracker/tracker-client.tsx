@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { TrackerRow } from "@/lib/sort";
@@ -10,6 +10,29 @@ import { ApplicationDetail } from "@/components/application-detail";
 import { DraftEditor } from "@/components/draft-editor";
 
 const STATUS_OPTIONS = Object.keys(STATUS_LABELS) as ApplicationStatus[];
+
+// Sortable columns for the Applied table. Each returns a comparable value
+// (string for text, number for dates/status order); null/empty sorts last.
+type SortKey =
+  | "applied"
+  | "job_title"
+  | "company"
+  | "salary"
+  | "status"
+  | "notes"
+  | "location"
+  | "next_interview";
+
+const SORT_VALUE: Record<SortKey, (r: TrackerRow) => string | number | null> = {
+  applied: (r) => (r.date_submitted ? Date.parse(r.date_submitted) : null),
+  job_title: (r) => r.job_title?.toLowerCase() || null,
+  company: (r) => r.company_name?.toLowerCase() || null,
+  salary: (r) => r.salary_text?.toLowerCase() || null,
+  status: (r) => STATUS_OPTIONS.indexOf(r.status),
+  notes: (r) => r.notes?.toLowerCase() || null,
+  location: (r) => r.location?.toLowerCase() || null,
+  next_interview: (r) => (r.next_interview_at ? Date.parse(r.next_interview_at) : null),
+};
 
 export function TrackerClient({
   notApplied,
@@ -31,6 +54,32 @@ export function TrackerClient({
   const [showRejected, setShowRejected] = useState(false);
   const [schedulingId, setSchedulingId] = useState<string | null>(null);
   const [openDraftId, setOpenDraftId] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
+
+  // Click a header to sort by it; click again to flip direction. With no sort
+  // chosen, the default (sortTrackerRows) order from the server is kept.
+  function toggleSort(key: SortKey) {
+    setSort((cur) =>
+      cur?.key === key
+        ? { key, dir: cur.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" }
+    );
+  }
+
+  const sortedApplied = useMemo(() => {
+    if (!sort) return applied;
+    const get = SORT_VALUE[sort.key];
+    const factor = sort.dir === "asc" ? 1 : -1;
+    return [...applied].sort((a, b) => {
+      const va = get(a);
+      const vb = get(b);
+      if (va === null && vb === null) return 0;
+      if (va === null) return 1; // nulls always last
+      if (vb === null) return -1;
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * factor;
+      return String(va).localeCompare(String(vb)) * factor;
+    });
+  }, [applied, sort]);
 
   const selected =
     applied.find((r) => r.id === selectedId) ??
@@ -230,18 +279,18 @@ export function TrackerClient({
               <table className="w-full text-left text-sm">
                 <thead className="text-xs uppercase tracking-wide text-neutral-400">
                   <tr>
-                    <th className="px-3 py-2.5 font-medium">Applied</th>
-                    <th className="px-3 py-2.5 font-medium">Job title</th>
-                    <th className="px-3 py-2.5 font-medium">Company</th>
-                    <th className="px-3 py-2.5 font-medium">Salary</th>
-                    <th className="px-3 py-2.5 font-medium">Status</th>
-                    <th className="px-3 py-2.5 font-medium">Notes</th>
-                    <th className="px-3 py-2.5 font-medium">Location</th>
-                    <th className="px-3 py-2.5 font-medium">Next interview</th>
+                    <SortableHeader label="Applied" sortKey="applied" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Job title" sortKey="job_title" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Company" sortKey="company" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Salary" sortKey="salary" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Notes" sortKey="notes" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Location" sortKey="location" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Next interview" sortKey="next_interview" sort={sort} onSort={toggleSort} />
                   </tr>
                 </thead>
                 <tbody>
-                  {applied.map((row) => (
+                  {sortedApplied.map((row) => (
                     <Row key={row.id} row={row} />
                   ))}
                   {applied.length === 0 && (
@@ -291,6 +340,37 @@ export function TrackerClient({
         </div>
       </section>
     </div>
+  );
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: { key: SortKey; dir: "asc" | "desc" } | null;
+  onSort: (key: SortKey) => void;
+}) {
+  const active = sort?.key === sortKey;
+  return (
+    <th className="px-3 py-2.5 font-medium">
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`group inline-flex items-center gap-1 uppercase tracking-wide transition-colors hover:text-neutral-700 ${
+          active ? "text-neutral-700" : ""
+        }`}
+        title={`Sort by ${label}`}
+      >
+        {label}
+        <span className={`text-[10px] ${active ? "opacity-100" : "opacity-0 group-hover:opacity-40"}`}>
+          {active ? (sort!.dir === "asc" ? "▲" : "▼") : "▲"}
+        </span>
+      </button>
+    </th>
   );
 }
 
